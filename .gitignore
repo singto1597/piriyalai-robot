@@ -1,0 +1,20 @@
+# Arduino compilation files
+*.hex
+*.elf
+*.bin
+*.d
+*.o
+
+# VS Code / PlatformIO
+.vscode/
+.pio/
+*.pio
+
+# Old Archives (ถ้าไม่อยากให้มันอัปโหลดไฟล์เก่าๆ ขึ้นเน็ต เพราะมันหนักและรก)
+**/Archive/
+*.zip
+*.rar
+
+# System files
+.DS_Store
+desktop.ini
