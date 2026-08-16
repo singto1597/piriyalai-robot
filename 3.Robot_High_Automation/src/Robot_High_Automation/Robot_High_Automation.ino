@@ -1,58 +1,65 @@
 #include <POP32.h>
 #include "Adafruit_TCS34725.h"
-////////////////////////////////////////////////////////////
-// our RGB -> eye-recognized gamma color
-  byte gammatable[256];
 
-static uint16_t color16(uint16_t r, uint16_t g, uint16_t b) {
-  uint16_t _color;
-  _color = (uint16_t)(r & 0xF8) << 8;
-  _color |= (uint16_t)(g & 0xFC) << 3;
-  _color |= (uint16_t)(b & 0xF8) >> 3;
-  return _color;
+//////////////////////////////////////////////////////////////
+// หุ่นยนต์ระดับสูง 4 ล้อ (POP32) — โหมด RGB 5/6/7/8
+//   5/6 : เช็คสีทีละช่อง (5 = เลี้ยวขวา, 6 = เลี้ยวซ้าย)
+//   7/8 : วิ่งตรงยาว       (7 = เลี้ยวขวา, 8 = เลี้ยวซ้าย)
+//////////////////////////////////////////////////////////////
+
+// แปลง RGB (0-255) เป็นสี 16 บิตแบบ RGB565 (ใช้เทียบกับค่าอ้างอิงสี)
+static uint16_t rgbTo565(uint16_t r, uint16_t g, uint16_t b) {
+  uint16_t color;
+  color = (uint16_t)(r & 0xF8) << 8;
+  color |= (uint16_t)(g & 0xFC) << 3;
+  color |= (uint16_t)(b & 0xF8) >> 3;
+  return color;
 }
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
-/////////////////////////////////////////////////////////////
 
-int Speed,NewSpeed, SlowSpeed, ACCSpeed, BaseSpeed, LeftBaseSpeed, RightBaseSpeed, TurnSpeed, MaxSpeed, SonarSpeed, DistanceRef;
-int Error, PreError, Kp, Kd, Ki, Kt, KpB, KdB, KiB, KtB, BackLeftBaseSpeed, BackRightBaseSpeed, KpChange; 
-int RefL3, RefL2, RefL1, RefC, RefR1, RefR2, RefR3, SumError, RefBL, RefBR;
-int L3, L2, L1, C, R1, R2, R3, BL, BR;
-long Timer, Timer1, Timer2, Timer3, Timer4;
-int SW_OK_Status,digital_sw=0;
-int RefLimitSwitch;
-  
-#define SW_pin 18
+// เซนเซอร์สี TCS34725
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_4X);
+
+// ===== ความเร็ว =====
+int speed;                     // ความเร็วหลัก (ตั้งจากเมนู, ค่าเริ่มต้น 35)
+int pivotSpeed;                // ความเร็วหมุนวนจัดตำแหน่ง
+int slowSpeed;                 // ความเร็วช้า (ใช้ปรับตำแหน่ง)
+int accSpeed;                  // ความเร็วเร่ง
+int baseSpeed;                 // ความเร็วฐานปัจจุบัน (คำนวณสำหรับ PID)
+int turnSpeed;                 // ความเร็วเลี้ยว
+int maxSpeed;                  // ความเร็วสูงสุด (จำกัด Output ของ PID)
+int leftBaseSpeed, rightBaseSpeed;         // ความเร็วฐานล้อหน้า (ซ้าย/ขวา)
+int backLeftBaseSpeed, backRightBaseSpeed; // ความเร็วฐานล้อหลัง (ซ้าย/ขวา)
+
+// ===== PID เดินตามเส้น (เซนเซอร์หน้า) =====
+int lineError;                 // error ตำแหน่งเส้น (-5..100)
+int prevLineError;             // error ของรอบก่อนหน้า (สำหรับ Kd)
+int integral;                  // ค่า integral สะสม (สำหรับ Ki)
+int kp, kd, ki;                // เกน PID
+int pidLoopDelayMs;            // หน่วงเวลาของวง PID
+
+// ===== ค่าอ้างอิงเซนเซอร์เส้น =====
+int refL3, refL2, refL1, refC, refR1, refR2, refR3;   // เซนเซอร์หน้า 7 ตัว
+int refBackL, refBackR;                               // เซนเซอร์หลัง 2 ตัว
+int refLimitSwitch;            // ค่าอ้างอิงลิมิตสวิตช์ (ตะเกียบ/สะพาน)
+
+// ===== ค่าเซนเซอร์เส้น (0 = เจอดำ, 1 = ขาว) =====
+int sensorL3, sensorL2, sensorL1, sensorC, sensorR1, sensorR2, sensorR3;
+int backL, backR;              // เซนเซอร์หลัง
+
+// ===== นาฬิกาจับเวลา =====
+long stopwatchMs, stopwatch1Ms, stopwatch2Ms, stopwatch3Ms, stopwatch4Ms;
+
 #define No 0
 #define Yes 1
 
-#define Mode1R 0
-#define Mode1L 1
-#define Mode2R 2
-#define Mode2L 3
-#define Mode3 4
-  
-int RobotMode=5;    //0:เซ็นเซอร์&กล้อง เช็คทีละ 1 ช่องแล้วเลี้ยวขวา 
-                    //1:เซ็นเซอร์&กล้อง เช็คทีละ 1 ช่องแล้วเลี้ยวซ้าย 
-                    //2:กล้องอย่างเดียว ยังไม่สมบูรณ์
-                    //3:เซ็นเซอร์&กล้อง วิ่งตรงยาวเลี้ยวขวา แต่ยังเข้าช่องไม่ได้
-                    //4:เซ็นเซอร์&กล้อง วิ่งตรงยาวเลี้ยวซ้าย แต่ยังเข้าช่องไม่ได้
-                    //5:เซ็นเซอร์&RGB เช็คทีละ 1 ช่องแล้วเลี้ยวขวา        :กดสวิช A(สีส้ม) แป๊บเดียว
-                    //6:เซ็นเซอร์&RGB เช็คทีละ 1 ช่องแล้วเลี้ยวซ้าย        :กดสวิช A(สีส้ม) แช่ไว้ 1 วินาที
-                    //7:เซ็นเซอร์&RGB วิ่งตรงยาวเลี้ยวขวา แต่ยังเข้าช่องไม่ได้ :กดสวิช B(สีขาว) แป๊บเดียว
-                    //8:เซ็นเซอร์&RGB วิ่งตรงยาวเลี้ยวซ้าย แต่ยังเข้าช่องไม่ได้ :กดสวิช B(สีขาว) แช่ไว้ 1 วินาที
-/*************** กล้อง *******************/
-#define XrefCenter  160  
-#define YrefCenter  120//80
-#define RefHeight   60
-#define Refwidth  120
-int xCenter,yCenter,width,height;
-int xOrigin,yOrigin,xTarget,yTarget;
-/**************************RGB*****************/
-int RedNumber=0,YellowNumber=0,BlueNumber=0,GreenNumber=0;
-int FloorColor,ColorCheck=0,BridgeStatus=0;
-  
-long RefBlue,RefGreen,RefWhite,RefBlack,RefYellow,RefRed;
+// ===== โหมดการทำงาน =====
+// 5 : เช็คทีละช่อง เลี้ยวขวา (กด SW_A สั้นๆ)
+// 6 : เช็คทีละช่อง เลี้ยวซ้าย (กด SW_A ค้าง 1 วิ)
+// 7 : วิ่งตรงยาว เลี้ยวขวา
+// 8 : วิ่งตรงยาว เลี้ยวซ้าย
+int robotMode = 5;
+
+// ===== สี (RGB) =====
 #define Blue 0
 #define Green 1
 #define Black 2
@@ -60,165 +67,99 @@ long RefBlue,RefGreen,RefWhite,RefBlack,RefYellow,RefRed;
 #define Yellow 4
 #define Red 5
 
-int ColorLevel[6]={0,1,2,3,4,5}; //เก็บค่าลำดับของค่าสีต่างๆ Blue,Green,White,Black,Yellow,Red;
-#define RGB_Mode  1  //0:เช็ค RGB แบบเดิมค่าสีต้องเรียง 1:เช็คแบบอัตโนมัติค่าสีไม่จำเป็นต้องเรียง 
+long refBlue, refGreen, refBlack, refWhite, refYellow, refRed;   // ค่าอ้างอิงสี
+int floorColor;                // สีพื้นปัจจุบัน
+int colorRank[6] = {0, 1, 2, 3, 4, 5};   // ลำดับค่าอ้างอิงสี (index: Blue..Red)
+#define RGB_MODE 1             // 0 = เทียบช่วงคงที่, 1 = เทียบลำดับอัตโนมัติ
 
+int redCount = 0, yellowCount = 0, blueCount = 0, greenCount = 0;   // จำนวนลูกบาศก์ที่ปล่อยไป
+int bridgeStatus = 0;          // 0 = ปกติ, 1 = ขึ้นสะพาน, 2 = ลงสะพาน
+
+// ===== โหมดทดสอบ (เลือกจาก knob ตอนเริ่ม) =====
 int modeSelect = 0;
 int knobValue = 0;
 
 void setup() {
+  speed = 35;
+  accSpeed = 100;
+  slowSpeed = 50;
+  pivotSpeed = 42;
+  baseSpeed = speed;
+  turnSpeed = 100;
 
-  Speed = 35;
-  ACCSpeed =100;
-  SlowSpeed = 50;
-  NewSpeed = 42; //25
-  BaseSpeed = Speed; 
-  TurnSpeed = 100;
-  InitialSpeed();
-  InitialRef();
-  if(RobotMode<5){ //ใช้กล้อง
-    //InitialHuskyslens();      //initial กล้อง huskylens
-    //Color_Recognition_mode();    //การจดจำสี
-  }
-  else{            //ใช้ RGB
-    SetupTCS34725();
-    delay(100); 
-    ShowRGBColor();
-    delay(1000);
-  }
+  updateSpeedPidParams();
+  loadSensorCalibration();
+
+  // ใช้ RGB sensor จำแนกสีพื้น (โหมด 5-8 ใช้สีพื้นตลอด)
+  initColorSensor();
+  delay(100);
+  showColorValue();
+  delay(1000);
   beep(0);
-  //TestServo();                  //ทดสอบชุดปล่อยและยกธง
-  oled.clear();                 //เคลียร์หน้าจอ
-  oled.mode(0);                 //หมุนหน้าจอ 0 องศา
-  oled.dim(true);               //ปรับความสว่างปกติ
-  oled.textSize(1);             //กำหนดขนาดตัวอักษร
-  oled.text(0,0," PHIRIYALAI SCHOOL"); //กำหนดข้อความที่จะแสดง
-  oled.text(1,0," High 4 Wheels POP32");
-  oled.text(2,0,"      PR_ROBOT    ");
-  oled.text(3,0,"     Speed = %d   ",Speed);
-  oled.text(4,0,"     ACCSpeed=%d",ACCSpeed);
-  oled.text(5,0,"       Mode = %d   ",RobotMode);
-  oled.show();                  //แสดงบนหน้าจอ
 
-  /*
-  SW_OK_Status = No;
-  while(SW_OK_Status == No)  {  // waiting "OK" button
-      if(Read_sw_OK()) {
-        SW_OK_Status = Yes;
-        StartTimer();
-        beep(1);
-        while(Read_sw_OK())  {  //wait unpress OK button
-        if(ReadTimer() >= 2000) {
-          beep(2);
-          TestServo();                  //ทดสอบชุดปล่อยและยกธง
-          Show7Analog();
-          SW_OK_Status = No;
-          }
-          else {SW_OK_Status = Yes;}   //ตามโหมดที่ตั้งไว้   
-        }
-       }
-       if(SW_A()){ 
-          StartTimer();
-          beep(1);
-          while(SW_A())  {}  //wait unpress SW A button
-          if(ReadTimer() >= 1000) RobotMode=6; //6:เซ็นเซอร์&RGB เช็คทีละ 1 ช่องแล้วเลี้ยวซ้าย
-          else  RobotMode=5;  //5:เซ็นเซอร์&RGB เช็คทีละ 1 ช่องแล้วเลี้ยวขวา
-          SW_OK_Status = Yes;
+  // หน้าจอต้อนรับ + แสดงโหมด/ความเร็ว
+  oled.clear();
+  oled.mode(0);
+  oled.dim(true);
+  oled.textSize(1);
+  oled.text(0, 0, " PHIRIYALAI SCHOOL");
+  oled.text(1, 0, " High 4 Wheels POP32");
+  oled.text(2, 0, "      PR_ROBOT    ");
+  oled.text(3, 0, "     Speed = %d   ", speed);
+  oled.text(4, 0, "     ACCSpeed=%d", accSpeed);
+  oled.text(5, 0, "       Mode = %d   ", robotMode);
+  oled.show();
 
-       }
-       if(SW_B()){
-          StartTimer();
-          beep(1);
-          while(SW_B())  {}  //wait unpress SW A button
-          if(ReadTimer() >= 1000) RobotMode=8; //8:เซ็นเซอร์&RGB วิ่งตรงยาวเลี้ยวซ้าย แต่ยังเข้าช่องไม่ได้
-          else  RobotMode=7;  //7:เซ็นเซอร์&RGB วิ่งตรงยาวเลี้ยวขวา แต่ยังเข้าช่องไม่ได้
-          SW_OK_Status = Yes;
-       }
-  }
-  */
-
+  // เลือกโหมดที่หน้าจอก่อนเริ่มงาน:
+  //  - หมุน knob + กด SW_B สั้นๆ   = ทดสอบโหมดตามตำแหน่ง knob (0-5)
+  //  - กด SW_B ค้าง >= 2 วิ          = ทดสอบเซอร์โว + ตั้งค่าอ้างอิงใหม่
+  //  - กด SW_A สั้นๆ                 = โหมด 5 (เช็คทีละช่อง เลี้ยวขวา)
+  //  - กด SW_A ค้าง >= 1 วิ          = โหมด 6 (เช็คทีละช่อง เลี้ยวซ้าย)
   while (1) {
     knobValue = knob();
-    modeSelect = map(knobValue, 0, 1023, 0, 5); 
-    oled.text(7,0,"   TESTMode = %d   ",modeSelect);
+    modeSelect = map(knobValue, 0, 1023, 0, 5);
+    oled.text(7, 0, "   TESTMode = %d   ", modeSelect);
     oled.show();
     if (SW_B()) {
-      StartTimer();
+      startStopwatch();
       beep(1);
-        while (SW_B()) {
-          if (ReadTimer() >= 2000) {   // กดค้าง >= 2 วินาที
-            beep(2);
-            TestServo();
-            Show7Analog();
-            break; // ออกจาก while(1)
-          }
+      while (SW_B()) {
+        if (stopwatchElapsed() >= 2000) {   // กดค้าง >= 2 วิ
+          beep(2);
+          testServo();
+          calibrateSensors();
+          break;
         }
-      runSelectedMode(modeSelect);
+      }
+      runTestMode(modeSelect);
       break;
     }
     if (SW_A()) {
-      StartTimer();
+      startStopwatch();
       beep(1);
       while (SW_A()) {}
-      if (ReadTimer() >= 1000) RobotMode = 6;
-      else RobotMode = 5;
+      if (stopwatchElapsed() >= 1000) robotMode = 6;
+      else robotMode = 5;
       break;
     }
-    /*
-    if (SW_B()) {
-      StartTimer();
-      beep(1);
-      while (SW_B()) {}
-      if (ReadTimer() >= 1000) RobotMode = 8;
-      else RobotMode = 7;
-      break;
-    }*/
   }
 
-  BaseSpeed = Speed;
+  // เริ่มวิ่งจริง
+  baseSpeed = speed;
   oled.clear();
   oled.textSize(2);
-  oled.text(0,0,"  Starting   ");
-  oled.text(1,0,"   Mode=%d   ",RobotMode);
+  oled.text(0, 0, "  Starting   ");
+  oled.text(1, 0, "   Mode=%d   ", robotMode);
   oled.show();
-  StartTimer2();
-  
-  //ForwardSpeedTime(Speed,3000); Finish();//เดินหน้าด้วยความเร็ว 30% นาน 5000 ms(5 วินาที)
-  //BackwardSpeedTime(Speed,3000); Finish();//ถอยหลังด้วยความเร็ว 30% นาน 5000 ms(5 วินาที)
-  //TurnLeft();
-  //TurnRight();
-  //UTurnLeft();
-  //UTurnRight();
-  //Trac1BlockRGB(Speed,1250);
-
-  //TracJCStop();
-  //TracJC();
-  //TracJCBlack();
-  //ForwardSpeedTime(Speed,580);
-  //TracFloorRGB(Speed,580);
-  //TracSpeedTime(Speed,580);
-  //CheckColor0();
-  //delay(1000);
-  /*FlagDown() ;
-  delay(1000);
-  FlagUp();*/
-  //Finish();
+  startStopwatch2();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  //Function();        //รวบรวมฟังก์ชันต่างๆ ที่ใช้ประจำ
-
-  switch(RobotMode){
-    //case 2: AutoCamera(); break;        //กล้องอย่างเดียว
-    //case 3: AutoLane(); break;          //เซ็นเซอร์&กล้อง วิ่งตรงยาว 3:เลี้ยวขวา 4:เลี้ยวซ้าย
-    //case 4: AutoLane(); break;          //เซ็นเซอร์&กล้อง วิ่งตรงยาว 3:เลี้ยวขวา 4:เลี้ยวซ้าย
-    case 5: AutoRightLeftRGB(); break; //เซ็นเซอร์&RGB เช็คทีละ 1 ช่อง 5:เลี้ยวขวา,6:เลี้ยวซ้าย
-    case 6: AutoRightLeftRGB(); break; //เซ็นเซอร์&RGB เช็คทีละ 1 ช่อง 5:เลี้ยวขวา,6:เลี้ยวซ้าย  
-    case 7: AutoLaneRGB(); break;      //เซ็นเซอร์&RGB วิ่งตรงยาว 7:เลี้ยวขวา 8:เลี้ยวซ้าย
-    case 8: AutoLaneRGB(); break;      //เซ็นเซอร์&RGB วิ่งตรงยาว 7:เลี้ยวขวา 8:เลี้ยวซ้าย
-    //default: AutoRightLeft(); break;    //เซ็นเซอร์&กล้อง เช็คทีละ 1 ช่อง 0:เลี้ยวขวา,1:เลี้ยวซ้าย
-    
+  switch (robotMode) {
+    case 5: autoScanCellsRgb(); break;   // เช็คทีละช่อง
+    case 6: autoScanCellsRgb(); break;   // เช็คทีละช่อง
+    case 7: autoDriveLaneRgb(); break;   // วิ่งตรงยาว
+    case 8: autoDriveLaneRgb(); break;   // วิ่งตรงยาว
   }
-  Finish();
+  finishRun();
 }
