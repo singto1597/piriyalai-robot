@@ -1,5 +1,6 @@
-// line_follow_pid.ino
+// Logics_LineFollowing.ino
 // แปลงค่าดิบจากเซนเซอร์เส้นเป็นค่า 0/1 และคำนวณ PID สำหรับเดินตามเส้น
+// (การอ่านเซนเซอร์ อยู่ใน Driver_ReadSensor.ino; เกน PID อยู่ใน config.h)
 
 // แปลงเซนเซอร์หน้า: 0 = เจอเส้นดำ, 1 = พื้นขาว
 void updateLineBinary() {
@@ -13,11 +14,11 @@ void updateLineBinary() {
   if (sensorR3 < refR3) sensorR3 = 0; else sensorR3 = 1;
 }
 
-// คำนวณ error ของเส้นตามตำแหน่งเส้นที่เจอ:
-// 0 = อยู่ตรงกลาง, + = เบนไปขวา, - = เบนไปซ้าย, 100 = เจอเส้นดำตรงกลาง (แยก)
+// คำนวณ error ของเส้นตามตำแหน่งเส้นที่เจอ:   (ตารางนี้คืออัลกอริทึม — ห้ามแก้)
+// 0 = อยู่ตรงกลาง, + = เบนไปขวา, - = เบนไปซ้าย, LINE_ERROR_CENTER = เจอเส้นดำตรงกลาง (แยก)
 void updateLineError() {
   updateLineBinary();
-  if (sensorC == 0) lineError = 100;
+  if (sensorC == 0) lineError = LINE_ERROR_CENTER;
   else if ((sensorL3==1)&&(sensorL2==1)&&(sensorL1==1)&&(sensorC==1)&&(sensorR1==1)&&(sensorR2==1)&&(sensorR3==0)) lineError = -1;
   else if ((sensorL3==1)&&(sensorL2==1)&&(sensorL1==1)&&(sensorC==1)&&(sensorR1==1)&&(sensorR2==0)&&(sensorR3==0)) lineError = -2;
   else if ((sensorL3==1)&&(sensorL2==1)&&(sensorL1==1)&&(sensorC==1)&&(sensorR1==1)&&(sensorR2==0)&&(sensorR3==1)) lineError = -3;
@@ -31,21 +32,23 @@ void updateLineError() {
   else if ((sensorL3==0)&&(sensorL2==1)&&(sensorL1==1)&&(sensorC==1)&&(sensorR1==1)&&(sensorR2==1)&&(sensorR3==1)) lineError = 1;
 }
 
+// จำกัดค่าให้อยู่ในช่วง -maxSpeed..maxSpeed (กัน PID สั่งมอเตอร์เกินกำลัง)
+int clampOutput(int value) {
+  if (value > maxSpeed) return maxSpeed;
+  if (value < -maxSpeed) return -maxSpeed;
+  return value;
+}
+
 // PID เดินตามเส้น: ปรับความเร็วล้อซ้าย/ขวาตาม error แล้วสั่งมอเตอร์ทั้ง 4 ล้อ
 void followLinePid() {
-  int output, leftOutput, rightOutput;
+  int output = (kp * lineError) + (ki * integral) + (kd * (lineError - prevLineError));
+  int leftOutput  = clampOutput(leftBaseSpeed + output);
+  int rightOutput = clampOutput(rightBaseSpeed - output);
 
-  output = (kp * lineError) + (ki * integral) + (kd * (lineError - prevLineError));
-  leftOutput = leftBaseSpeed + output;
-  rightOutput = rightBaseSpeed - output;
-  if (leftOutput > maxSpeed) leftOutput = maxSpeed;
-  else if (leftOutput < -maxSpeed) leftOutput = -maxSpeed;
-  if (rightOutput > maxSpeed) rightOutput = maxSpeed;
-  else if (rightOutput < -maxSpeed) rightOutput = -maxSpeed;
-  motor(1, leftOutput);
-  motor(2, leftOutput);
-  motor(3, rightOutput);
-  motor(4, rightOutput);
+  motor(MOTOR_CH_LEFT_1, leftOutput);
+  motor(MOTOR_CH_LEFT_2, leftOutput);
+  motor(MOTOR_CH_RIGHT_1, rightOutput);
+  motor(MOTOR_CH_RIGHT_2, rightOutput);
   prevLineError = lineError;
   integral += lineError;
 }

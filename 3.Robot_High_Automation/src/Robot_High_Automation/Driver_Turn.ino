@@ -1,25 +1,26 @@
-// turn_control.ino
+// Driver_Turn.ino
 // ควบคุมการหมุนของหุ่นยนต์ (หมุนรอบตัวเองด้วยความเร็วคงที่ turnSpeed)
-// ระยะเวลาหมุนคำนวณจากค่าคงที่ 24400/turnSpeed และ 36000/turnSpeed (ปรับจูนจากสนามจริง)
+// เวลาหมุนคำนวณจาก TURN_90_MS_FACTOR/turnSpeed และ TURN_180_MS_FACTOR/turnSpeed
+// (ค่า factor ปรับจูนได้ใน config.h ตามสนามจริง)
 
 // เลี้ยวซ้าย 90 องศา
 void turnLeft() {
-  spinLeft(turnSpeed, 24400 / turnSpeed);
+  spinLeft(turnSpeed, TURN_90_MS_FACTOR / turnSpeed);
 }
 
 // เลี้ยวขวา 90 องศา
 void turnRight() {
-  spinRight(turnSpeed, 24400 / turnSpeed);
+  spinRight(turnSpeed, TURN_90_MS_FACTOR / turnSpeed);
 }
 
 // กลับตัวทางซ้าย 180 องศา
 void uTurnLeft() {
-  spinLeft(turnSpeed, 36000 / turnSpeed);
+  spinLeft(turnSpeed, TURN_180_MS_FACTOR / turnSpeed);
 }
 
 // กลับตัวทางขวา 180 องศา
 void uTurnRight() {
-  spinRight(turnSpeed, 36000 / turnSpeed);
+  spinRight(turnSpeed, TURN_180_MS_FACTOR / turnSpeed);
 }
 
 // หมุนซ้ายรอบตัวเอง ด้วยความเร็ว-เวลาที่กำหนด
