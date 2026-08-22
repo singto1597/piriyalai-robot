@@ -73,6 +73,7 @@ void setup() {
   // ใช้ RGB sensor จำแนกสีพื้น (โหมด 5-8 ใช้สีพื้นตลอด)
   initColorSensor();
   delay(COLOR_INIT_SETTLE_MS);
+  detectFloorColor();      // อ่านสี 1 ครั้งตอน boot (เพื่อให้ showColorValue แสดงค่าจริง — ไม่อ่านซ้ำระหว่างวิ่ง)
   showColorValue();
   delay(COLOR_SHOW_HOLD_MS);
   beep(0);

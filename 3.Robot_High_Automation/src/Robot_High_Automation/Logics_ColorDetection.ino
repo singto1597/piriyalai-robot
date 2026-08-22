@@ -2,11 +2,12 @@
 // จำแนกสีพื้นเป็น 1 ใน 6 สี (Blue/Green/Black/White/Yellow/Red) จากค่าที่อ่านได้
 // (การอ่านค่าดิบจากเซนเซอร์ อยู่ใน Driver_RgbSensor.ino)
 
-// แสดงค่าสีปัจจุบันบนหน้าจอ
+// แสดงสีพื้นปัจจุบันบนหน้าจอ
+// เดิม: อ่าน RGB ซ้ำทุกครั้ง (เสีย ~214ms) — เปลี่ยนเป็นใช้ค่าที่ detectFloorColor() อ่านไว้แล้ว
+// (อย่าลืมเรียก detectFloorColor() ก่อน showColorValue() ตอน boot ครั้งแรก)
 void showColorValue() {
-  int colorRgb = readRgbColor();
   oled.clear();
-  oled.text(0, 0, "Color=%d    ", colorRgb);
+  oled.text(0, 0, "Color=%d    ", floorColor);
   oled.show();
 }
 
