@@ -1,4 +1,4 @@
-// finish_run.ino
+// Logics_FinishRun.ino
 // Logic จบการวิ่ง: หยุดรถ แสดงเวลารวมบนจอ แล้วค้างหน้าจอไว้
 
 void finishRun() {

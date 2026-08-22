@@ -1,38 +1,6 @@
-// rgb_sensor.ino
-// เซนเซอร์สี TCS34725: เริ่มต้น อ่านค่าสี แล้วจำแนกว่าพื้นเป็นสีอะไร
-
-// เริ่มต้น RGB sensor และตรวจสอบว่าเจอเซนเซอร์หรือไม่
-void initColorSensor() {
-  delay(100);
-  Serial.begin(115200);
-  oled.text(0, 0, "Color Sensor Test!");
-  if (tcs.begin()) {
-    oled.text(1, 0, "Found sensor!");
-  } else {
-    oled.text(1, 0, "No TCS34725 found!");
-  }
-  oled.show();
-  tcs.setIntegrationTime(TCS34725_INTEGRATIONTIME_154MS);
-  tcs.setGain(TCS34725_GAIN_4X);
-}
-
-// อ่านค่าสีแล้วแปลงเป็น RGB565 (ค่าที่ใช้เทียบกับ ref สี)
-uint16_t readRgbColor() {
-  uint16_t clear, red, green, blue;
-
-  delay(60);   // ใช้เวลาอ่าน ~50ms
-  tcs.getRawData(&red, &green, &blue, &clear);
-
-  // คำนวณสัดส่วนสีแต่ละตัว เทียบกับค่า clear แล้วปรับขนาดเป็น 0-255
-  uint32_t sum = clear;
-  float r, g, b;
-  r = red;    r /= sum;
-  g = green;  g /= sum;
-  b = blue;   b /= sum;
-  r *= 256; g *= 256; b *= 256;
-
-  return rgbTo565((int)r, (int)g, (int)b);
-}
+// Logics_ColorDetection.ino
+// จำแนกสีพื้นเป็น 1 ใน 6 สี (Blue/Green/Black/White/Yellow/Red) จากค่าที่อ่านได้
+// (การอ่านค่าดิบจากเซนเซอร์ อยู่ใน Driver_RgbSensor.ino)
 
 // แสดงค่าสีปัจจุบันบนหน้าจอ
 void showColorValue() {
@@ -48,13 +16,13 @@ int detectFloorColor() {
   else return detectFloorColorByRank();
 }
 
-// จำแนกสีแบบเทียบกับช่วง +-500 จากค่าอ้างอิงคงที่ของแต่ละสี
+// จำแนกสีแบบเทียบกับช่วง +-COLOR_RANGE_TOLERANCE จากค่าอ้างอิงคงที่ของแต่ละสี
 int detectFloorColorByRange() {
   long colorRgb = readRgbColor();
-  if (colorRgb < (refBlue + 500) && colorRgb > (refBlue - 500)) {
+  if (colorRgb < (refBlue + COLOR_RANGE_TOLERANCE) && colorRgb > (refBlue - COLOR_RANGE_TOLERANCE)) {
     floorColor = Blue;      // น้ำเงิน
   }
-  else if (colorRgb < (refGreen + 500) && colorRgb > (refGreen - 500)) {
+  else if (colorRgb < (refGreen + COLOR_RANGE_TOLERANCE) && colorRgb > (refGreen - COLOR_RANGE_TOLERANCE)) {
     floorColor = Green;     // เขียว
   }
   else if (colorRgb < (refBlack + refWhite) / 2) {
