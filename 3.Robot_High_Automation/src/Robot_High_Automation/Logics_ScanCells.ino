@@ -19,39 +19,20 @@ void followOneCellRgb(int tracSpeed, int timeMs) {
 }
 
 // เดินตามเส้นไปเรื่อยๆ จนกว่าจะ: ครบเวลา (status=1) หรือเจอแยก (status>=STATUS_JUNCTION)
-//  - status 1: ไม่เจอเส้นดำ → ดูสีที่อ่านกลางช่อง: ถ้าเป็นช่องวาง (ฟ้า/เขียว/เหลือง/แดง) → หยุดปล่อย
-//              ถ้าเป็นขาว/ดำ → ไม่หยุด เลี้ยวตามทิศทางของโหมดเลย (เร็วขึ้น — ไม่เสียเวลาเช็คซ้ำ)
-//              แล้วดูแลสะพาน
+//  - status 1: ไม่เจอเส้นดำ → เช็คสี ดูแลสะพาน แล้วเลี้ยวตามทิศทางของโหมด
 //  - status 2+: เจอแยก → เช็คสี ถ้าเป็นพื้นที่วาง (ไม่ใช่ขาว/ดำ) ถอยออกมาแล้วปล่อยลูกบาศก์
 void followLineToColorBox(int tracSpeed, int timeMs) {
   int status = STATUS_NORMAL;
-  bool colorScanned = false;            // อ่านสีกลางช่องแล้วหรือยัง
 
   startStopwatch();
   forwardFor(tracSpeed, MOTION_START_TICK_MS);
   while (status == STATUS_NORMAL) {
     status = followLineAndAlign();
 
-    // อ่านสีกลางช่องครั้งเดียว (หุ่นอยู่กลางช่อง = ตำแหน่งแม่นสุด)
-    // ใช้พยากรณ์สีช่องก่อนถึงปลายช่อง: ถ้าเป็นขาว/ดำ → ปลายช่องเลี้ยวเลย ไม่ต้องหยุดเช็ค
-    // หมายเหตุ: อ่านขณะหุ่นยังวิ่ง (~160ms) — ตำแหน่งหยุดยังเท่าเดิม (stopwatch นับเวลารวม)
-    //           แต่สีที่อ่านคือตำแหน่งกลางช่อง (แม่นกว่าเดิมที่อ่านตอนหยุดปลายช่อง)
-    if (!colorScanned && (status == STATUS_NORMAL) &&
-        (stopwatchElapsed() > (long)timeMs * CELL_COLOR_SNAPSHOT_PERCENT / 100)) {
-      detectFloorColor();
-      colorScanned = true;
-    }
-
     // ครบเวลาโดยไม่เจอแยก → เช็คสี/สะพาน แล้วเลี้ยวตามทิศโหมด
     if ((stopwatchElapsed() > timeMs) && (status == STATUS_NORMAL)) {
       status = 1;
-      if (!colorScanned) detectFloorColor();   // เผื่อช่องสั้นจนอ่านกลางช่องไม่ทัน
-
-      // ช่องขาว/ดำ → ไม่ใช่ช่องวาง: ข้ามการหยุดเช็คซ้ำไปเลย (ประหยัด ~360ms/ช่อง)
-      // ช่องวางจริง (ฟ้า/เขียว/เหลือง/แดง) → หยุดปล่อย (checkFloorAndKick อ่านซ้ำเพื่อยืนยันเอง)
-      if (!((floorColor == White) || (floorColor == Black))) {
-        checkFloorAndKick();
-      }
+      checkFloorAndKick();
       showColorValue();
       if (bridgeStatus == 2) {          // เพิ่งลงจากสะพาน → เดินข้ามไปให้พ้น
         followLineFor(speed, BRIDGE_CLEAR_MS);
