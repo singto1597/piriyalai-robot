@@ -18,13 +18,14 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(COLOR_START_INTEGRATION_TIME, COLOR_GA
 // ===== ความเร็ว (ค่าเริ่มต้นมาจาก config.h, เปลี่ยนได้จากเมนู) =====
 int speed = DEFAULT_SPEED;                // ความเร็วหลัก
 int pivotSpeed = DEFAULT_PIVOT_SPEED;     // ความเร็วหมุนวนจัดตำแหน่ง
-int slowSpeed = DEFAULT_SLOW_SPEED;       // ความเร็วช้า (ปรับตำแหน่ง)
+int slowSpeed = DEFAULT_SLOW_SPEED;       // ควาว
+int maxSpeed = PID_OUTPUT_LIMIT;          // ความเร็วสูงสุมเร็วช้า (ปรับตำแหน่ง)
 int accSpeed = DEFAULT_ACC_SPEED;         // ความเร็วเร่ง
 int baseSpeed = DEFAULT_SPEED;            // ความเร็วฐานปัจจุบัน (คำนวณสำหรับ PID)
-int turnSpeed = DEFAULT_TURN_SPEED;       // ความเร็วเลี้ยว
-int maxSpeed = PID_OUTPUT_LIMIT;          // ความเร็วสูงสุด (จำกัด Output ของ PID)
+int turnSpeed = DEFAULT_TURN_SPEED;       // ความเร็วเลี้ยด (จำกัด Output ของ PID)
 int leftBaseSpeed, rightBaseSpeed;         // ความเร็วฐานล้อหน้า (ซ้าย/ขวา)
-int backLeftBaseSpeed, backRightBaseSpeed; // ความเร็วฐานล้อหลัง (ซ้าย/ขวา)
+int backLeftBaseSpeed, backRightBaseSpeed;   //676767
+ // ความเร็วฐานล้อหลัง (ซ้าย/ขวา)
 
 // ===== PID เดินตามเส้น (เซนเซอร์หน้า) =====
 int lineError;                 // error ตำแหน่งเส้น (-5..LINE_ERROR_CENTER)
