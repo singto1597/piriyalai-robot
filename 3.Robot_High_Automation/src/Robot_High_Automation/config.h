@@ -161,9 +161,6 @@ static const SpeedBand SPEED_BANDS[] = {
 
 // ---- การสแกน/ปล่อยลูกบาศก์ (โหมด 5/6) ----
 #define CELL_SCAN_TIME_MS     420   // เวลาวิ่ง 1 ช่อง (ก่อนเจอแยก) ถ้าช่องยาว/สั้นกว่า 1350 ปรับตรงนี้
-#define CELL_COLOR_SNAPSHOT_PERCENT 50  // % ของเวลา 1 ช่อง ที่อ่านสีกลางช่อง (50 = กึ่งกลางช่อง)
-                                       // ใช้พยากรณ์สีช่องก่อนถึงปลายช่อง: ถ้าเป็นขาว/ดำ จะได้ไม่ต้องหยุดเช็คซ้ำ (เร็วขึ้นมาก)
-                                       // ถ้าอ่านเพี้ยน (เจอช่องวางไม่ครบ) ลองเลื่อนไป 60-70 (ใกล้ปลายช่อง); ถ้าเจอช่องวางผิดที่ ลอง 40-45
 #define BRIDGE_CLEAR_MS       500    // เดินข้ามพ้นสะพานหลังลงจากสะพาน
 #define JUNCTION_BACKUP_MS    150    // ถอยออกจากแยกหลังเจอเส้นดำ
 #define DROP_ZONE_BACKUP_MS   200    // ถอยเพิ่มเมื่อพื้นที่เป็นช่องวางลูกบาศก์
@@ -251,7 +248,7 @@ static const SpeedBand SPEED_BANDS[] = {
 #define SERIAL_BAUD           115200   // อัตราส่ง Serial (สำหรับ debug)
 #define COLOR_POWERON_DELAY_MS  100    // รอให้เซนเซอร์สีพร้อมทำงานหลังเริ่มต้น (ก่อน tcs.begin)
 #define COLOR_START_INTEGRATION_TIME   TCS34725_INTEGRATIONTIME_50MS  // เวลาเก็บแสงตอนสร้าง object
-#define COLOR_OPERATING_INTEGRATION_TIME TCS34725_INTEGRATIONTIME_154MS // เวลาเก็บแสงจริงตอนอ่าน (เดิม 154ms — ลดลงเพื่อให้อ่านเร็วขึ้น ~53ms/ครั้ง ตอนเช็คสีกลางช่องหุ่นจะได้ไม่ไถลไกลเกินไป; ถ้าแยกสีเพี้ยนบ่อย ให้คืนกลับเป็น 154MS)
+#define COLOR_OPERATING_INTEGRATION_TIME TCS34725_INTEGRATIONTIME_154MS // เวลาเก็บแสงจริงตอนอ่าน (ยาวขึ้น = แม่นขึ้นแต่ช้าลง; จูนหุ่นรอบที่ 1 คืนกลับเป็น 154ms)
 #define COLOR_GAIN            TCS34725_GAIN_4X   // อัตราขยายเซนเซอร์สี (แสงน้อยต้องเพิ่มเกน)
 #define COLOR_READ_DELAY_MS   60    // รอให้ TCS34725 อ่านเสร็จ (~50ms) ก่อนอ่านค่าดิบ
 #define COLOR_RANGE_TOLERANCE 500   // ระยะ +- ที่ถือว่า "ตรงสี" ในโหมด RGB_MODE=0
