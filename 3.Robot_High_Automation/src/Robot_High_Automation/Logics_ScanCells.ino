@@ -19,8 +19,9 @@ void followOneCellRgb(int tracSpeed, int timeMs) {
 }
 
 // เดินตามเส้นไปเรื่อยๆ จนกว่าจะ: ครบเวลา (status=1) หรือเจอแยก (status>=STATUS_JUNCTION)
-//  - status 1: ไม่เจอเส้นดำ → เช็คสี ดูแลสะพาน แล้วเลี้ยวตามทิศทางของโหมด
-//  - status 2+: เจอแยก → เช็คสี ถ้าเป็นพื้นที่วาง (ไม่ใช่ขาว/ดำ) ถอยออกมาแล้วปล่อยลูกบาศก์
+//  - status 1: ไม่เจอเส้นดำ → เช็คสี ถ้าเป็นพื้นที่วางให้วางบล็อค แล้วเลี้ยวตามทิศของโหมด
+//  - status 2+: เจอแยก → เช็คสี ถ้าเป็นพื้นที่วางให้วางบล็อค (ปล่อย-ถอย-ปรับ-เลี้ยวตามโหมด)
+//               ถ้าเป็นแยกธรรมดา (ขาว/ดำ) ถอยออกแยกแล้วเลี้ยวสวนโหมด
 void followLineToColorBox(int tracSpeed, int timeMs) {
   int status = STATUS_NORMAL;
 
@@ -29,7 +30,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
   while (status == STATUS_NORMAL) {
     status = followLineAndAlign();
 
-    // ครบเวลาโดยไม่เจอแยก → เช็คสี/สะพาน แล้วเลี้ยวตามทิศโหมด
+    // ครบเวลาโดยไม่เจอแยก → เช็คสี/วางบล็อค แล้วเลี้ยวตามทิศโหมด
     if ((stopwatchElapsed() > timeMs) && (status == STATUS_NORMAL)) {
       status = 1;
       checkFloorAndKick();
@@ -40,49 +41,43 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
         bridgeStatus = 0;
       }
       else if (bridgeStatus == 1) bridgeStatus = 2;   // เลี้ยวขาขึ้นสะพานเสร็จแล้ว
-      turnByMode();
+      if ((floorColor == White) || (floorColor == Black)) turnByMode();
+      // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (เลี้ยวตามโหมดไปแล้วใน placeBlockAndExit)
     }
 
-    // เจอเส้นดำ (แยก) → เช็คสี/ปล่อยลูกบาศก์ แล้วเลี้ยวออกจากแยก
+    // เจอเส้นดำ (แยก) → เช็คสี/วางบล็อค หรือถอยออกจากแยก
     if (status >= STATUS_JUNCTION) {
       checkFloorAndKick();
       showColorValue();
-      backwardFor(speed, JUNCTION_BACKUP_MS);
-      if ((floorColor != White) && (floorColor != Black)) backwardFor(speed, DROP_ZONE_BACKUP_MS);   // เป็นพื้นที่วาง ถอยเพิ่ม
-      turnAgainstMode();
+      if ((floorColor == White) || (floorColor == Black)) {   // แยกธรรมดา → ถอยออกแยก แล้วเลี้ยวสวนโหมด
+        backwardFor(speed, JUNCTION_BACKUP_MS);
+        turnAgainstMode();
+      }
+      // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (ปล่อย-ถอย-ปรับ-เลี้ยวตามโหมด) วนลูปต่อไป
       if (status == STATUS_DEADEND) stopMotors();
     }
   }
 }
 
-// เช็คสีพื้น แล้วปล่อยลูกบาศก์สีที่ตรงกับช่องนั้น (แดง/เหลืองต้องถอยมากกว่า + กลับตัว)
-// ถ้าเก็บครบ 4 สี → ยกธงจบการทำงาน
+// เช็คสีพื้น ถ้าเป็นพื้นที่วางลูกบาศก์ (สีใดก็ได้) → วางบล็อค routine เดียว
+// แล้วเช็คว่าเก็บครบ 4 สีหรือยัง (ครบ → ยกธงจบงาน)
 void checkFloorAndKick() {
   stopMotors();
   delay(COLOR_READ_SETTLE_MS);
   detectFloorColor();
   delay(COLOR_READ_SETTLE_MS);
 
-  if ((floorColor == Blue) || (floorColor == Green)) {
-    // น้ำเงิน/เขียว: ปล่อยเซอร์โวช่อง 1 (ถอยสั้นๆ ไม่ต้องกลับตัว)
-    backwardFor(speed, KICK_BACKUP_MS);
-    AO();
-    if (floorColor == Blue) { kickBlue(); blueCount++; }
-    else                    { kickGreen(); greenCount++; }
-  }
-  else if ((floorColor == Red) || (floorColor == Yellow)) {
-    // แดง/เหลือง: เช็คสีซ้ำอีกครั้ง (สีแรกอาจเพี้ยน) แล้วปล่อยเซอร์โวช่อง 2 (ถอยไกล + กลับตัว)
-    // (เดิมเป็น else — ขาว/ดำจะถูกบังคับอ่านซ้ำเสีย ~314ms; เปลี่ยนเป็น else-if เพื่อข้ามขาว/ดำทันที)
+  // แดง/เหลืองอ่านสีซ้ำยืนยัน (ค่าสีเสี่ยงเพี้ยนรอบแรก — บันทึกใน skills.md)
+  // หมายเหตุ: อ่านซ้ำแค่เพื่อความแม่นยำของสี — motion วางบล็อคยัง unified เดียวกันทุกสี
+  if ((floorColor == Red) || (floorColor == Yellow)) {
     stopMotors();
     detectFloorColor();
-    if ((floorColor == Red) || (floorColor == Yellow)) {
-      backwardFor(speed, RED_YELLOW_BACKUP_MS);
-      AO();
-      if (floorColor == Red) { kickRed(); redCount++; }
-      else                   { kickYellow(); yellowCount++; }
-      backwardFor(speed, RED_YELLOW_UTURN_MS);
-      uTurnLeft();
-    }
+  }
+
+  // พื้นที่วาง (ไม่ใช่ขาว/ดำ) → วางบล็อค routine เดียวกันทุกสี ไม่แบ่งสี
+  if ((floorColor == Blue) || (floorColor == Green) ||
+      (floorColor == Red)  || (floorColor == Yellow)) {
+    placeBlockAndExit();
   }
 
   // เก็บครบ 4 สีแล้ว → ยกธง
@@ -92,6 +87,39 @@ void checkFloorAndKick() {
     raiseFlag();
     finishRun();
   }
+}
+
+// วางบล็อค routine เดียวกันทุกสี (ไม่แบ่งสี):
+//   1) ปล่อยลูกบาศก์ตามสีที่เช็คเจอ
+//   2) ถอยหลังจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ
+//   3) ปรับให้ตรง (ให้เส้นตั้งฉาก/กึ่งกลางตัวหุ่น)
+//   4) เลี้ยวตามโหมด แล้วลูปหลักวนต่อไป
+void placeBlockAndExit() {
+  kickForColor(floorColor);              // ปล่อยลูกบาศก์ก่อน
+  reverseUntilBackLine();                // ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ
+  backwardAlign(PLACE_ALIGN_TOTAL_MS);   // ปรับให้ตรง
+  turnByMode();                          // เลี้ยวตามโหมด
+}
+
+// ปล่อยลูกบาศก์ตามสีที่ตรวจเจอ (ช่องเซอร์โว 1 = น้ำเงิน/เขียว, ช่อง 2 = แดง/เหลือง) + นับจำนวน
+void kickForColor(int color) {
+  if (color == Blue)        { kickBlue();   blueCount++; }
+  else if (color == Green)  { kickGreen();  greenCount++; }
+  else if (color == Red)    { kickRed();    redCount++; }
+  else if (color == Yellow) { kickYellow(); yellowCount++; }
+}
+
+// ถอยหลังช้าๆ จนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (กันค้างด้วย timeout)
+void reverseUntilBackLine() {
+  startStopwatch();
+  backwardFor(slowSpeed, MOTION_START_TICK_MS);   // กระตุกมอเตอร์ให้เริ่มถอย
+  while (1) {
+    updateBackLineBinary();
+    if ((backL == 0) && (backR == 0)) break;                     // ทั้ง 2 ข้างเจอเส้นดำ → พอ
+    if (stopwatchElapsed() > PLACE_REVERSE_TIMEOUT_MS) break;    // กันค้าง (ถอยนานเกินไม่เจอเส้น)
+    backwardFor(slowSpeed, PLACE_REVERSE_STEP_MS);               // ถอยต่อไปทีละขั้น
+  }
+  stopMotors();
 }
 
 // เช็คตะเกียบ/สะพานด้วยลิมิตสวิตช์ (PIN_LIMIT_SWITCH)
