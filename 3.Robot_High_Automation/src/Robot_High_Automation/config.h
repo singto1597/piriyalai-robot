@@ -163,14 +163,16 @@ static const SpeedBand SPEED_BANDS[] = {
 // ---- การสแกน/ปล่อยลูกบาศก์ (โหมด 5/6) ----
 #define CELL_SCAN_TIME_MS     420   // เวลาวิ่ง 1 ช่อง (ก่อนเจอแยก) ถ้าช่องยาว/สั้นกว่า 1350 ปรับตรงนี้
 #define BRIDGE_CLEAR_MS       500    // เดินข้ามพ้นสะพานหลังลงจากสะพาน
-#define JUNCTION_BACKUP_MS    150    // ถอยออกจากแยกหลังเจอเส้นดำ
-#define DROP_ZONE_BACKUP_MS   200    // ถอยเพิ่มเมื่อพื้นที่เป็นช่องวางลูกบาศก์
+#define JUNCTION_BACKUP_MS    150    // ถอยออกจากแยกหลังเจอเส้นดำ (แยกธรรมดา ไม่ใช่พื้นที่วาง)
 #define COLOR_READ_SETTLE_MS  50     // รอให้เซนเซอร์สีนิ่งก่อนอ่าน/หลังอ่าน
-#define KICK_BACKUP_MS        150    // ถอยก่อนปล่อยลูกบาศก์น้ำเงิน/เขียว
-#define RED_YELLOW_BACKUP_MS  420    // ถอยก่อนปล่อยลูกบาศก์แดง/เหลือง
-#define RED_YELLOW_UTURN_MS   1050   // ถอยให้พ้นก่อนกลับตัว (แดง/เหลือง)
 #define FLAG_BACKUP_SPEED     50     // ความเร็วถอยสั้นๆ ก่อนยกธงจบงาน
 #define FLAG_BACKUP_MS        50     // ระยะถอยก่อนยกธง
+
+// ---- วางบล็อค (routine เดียวกันทุกสี — ใช้ทั้งโหมด 5/6 และ 7/8) ----
+// วางบล็อค = ปล่อยลูกบาศก์ → ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ → ปรับตรง → เลี้ยวตามโหมด
+#define PLACE_REVERSE_STEP_MS     10     // ถอยทีละกี่ ms ระหว่างอ่านเซนเซอร์หลัง (สั้น = ตรวจละเอียด)
+#define PLACE_REVERSE_TIMEOUT_MS  2500   // กันค้าง: ถอยนานเกินนี้ยังไม่เจอเส้น (ไม่มีเส้น/เซนเซอร์เพี้ยน)
+#define PLACE_ALIGN_TOTAL_MS      400    // งบเวลาปรับให้ตรงหลังถอยจนเจอเส้น (ส่งเข้า backwardAlign)
 
 // ---- ตะเกียบ/สะพาน (ลิมิตสวิตช์) ----
 #define BRIDGE_PROBE_MS       50     // เดินหน้าแตะสวิตช์สั้นๆ เพื่อตรวจ
@@ -190,14 +192,9 @@ static const SpeedBand SPEED_BANDS[] = {
 
 // ---- โหมดวิ่งตรงยาว (7/8) ----
 #define ALIGN_TOTAL_MS        400     // งบเวลารวมของการจัดตำแหน่งถอยหลัง (ส่งเข้า backwardAlign)
-#define ALIGN_DROP_TOTAL_MS   350     // งบเวลารวมครั้งแรกหลังวางลูกบาศก์ (สั้นกว่า เพื่อเลี้ยวได้ไว)
 #define JUNCTION_DRIVE_MS     400     // เวลาเดินหาแยก 1 ช่องใน driveToJunction (ครบแล้วไม่เจอ = status 1)
-#define DROP_BACKUP_SPEED     50      // ความเร็วถอยเมื่อเจอพื้นที่วาง
-#define DROP_BACKUP_MS        200     // ระยะถอยเมื่อเจอพื้นที่วาง
-#define DUP_CELL_DRIVE_MS     500     // เดินหน้าเมื่อช่องเดิมวางซ้ำ (ก่อนสลับโหมด)
 #define DEAD_END_BACKUP_MS    230     // ถอยเมื่อเจอทางตัน
-#define REJOIN_FORWARD_MS     400     // เดินหน้าเข้ากลางช่องเมื่อไม่มีเส้นให้จูน
-#define REJOIN_SHORT_FORWARD_MS 200   // เดินหน้าเข้ากลางช่องเมื่อมีเส้นให้จูน
+#define REJOIN_SHORT_FORWARD_MS 200   // เดินหน้าเข้ากลางช่องเล็กน้อยหลังสลับโหมด (ช่องวางซ้ำ)
 
 // ---- ทั่วไป ----
 #define STOP_SETTLE_MS        100    // รอให้มอเตอร์หยุดสนิท (ห้ามลดต่ำเกิน มอเตอร์จะไหล)
