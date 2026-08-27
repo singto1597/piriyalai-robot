@@ -34,13 +34,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
     if ((stopwatchElapsed() > timeMs) && (status == STATUS_NORMAL)) {
       status = 1;
       checkFloorAndKick();
-      showColorValue();
-      if (bridgeStatus == 2) {          // เพิ่งลงจากสะพาน → เดินข้ามไปให้พ้น
-        followLineFor(speed, BRIDGE_CLEAR_MS);
-        stopMotors();
-        bridgeStatus = 0;
-      }
-      else if (bridgeStatus == 1) bridgeStatus = 2;   // เลี้ยวขาขึ้นสะพานเสร็จแล้ว
+      showRunStatus();
       if ((floorColor == White) || (floorColor == Black)) turnByMode();
       // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (เลี้ยวตามโหมดไปแล้วใน placeBlockAndExit)
     }
@@ -49,7 +43,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
     if (status >= STATUS_JUNCTION) {
       if (status == STATUS_JUNCTION) backOffJunction();   // เซนเซอร์หน้าเจอเส้น → ถอยนิดหน่อยก่อนเช็คสี (กันเบรกไม่ทัน)
       checkFloorAndKick();
-      showColorValue();
+      showRunStatus();
       if ((floorColor == White) || (floorColor == Black)) {   // แยกธรรมดา → ถอยออกแยก แล้วเลี้ยวสวนโหมด
         backwardFor(speed, JUNCTION_BACKUP_MS);
         turnAgainstMode();
@@ -136,28 +130,11 @@ void kickForColor(int color) {
   else if (color == Green) { kickGreen();  greenCount++; }
 }
 
-// เช็คตะเกียบ/สะพานด้วยลิมิตสวิตช์ (PIN_LIMIT_SWITCH — อ่านแบบดิจิทัล)
-// คืนค่า: BRIDGE_FORK = เจอตะเกียบ, BRIDGE_NORMAL = ปกติ, BRIDGE_CLIMB = ขึ้นสะพาน, BRIDGE_DESCEND = ลงสะพาน
-int checkBridge() {
-  if (!limitSwitchPressed()) return BRIDGE_NORMAL;   // สวิชไม่ถูกกด = ปกติ
-
-  // สวิชถูกกด → เดินแตะสวิชอีกที ถ้าพ้นแล้ว = เจอตะเกียบ
-  forwardFor(slowSpeed, BRIDGE_PROBE_MS);
-  if (!limitSwitchPressed()) {
-    forwardFor(slowSpeed - FORK_CLEAR_SPEED_OFFSET, FORK_CLEAR_MS);
-    stopMotors();
-    return BRIDGE_FORK;
-  }
-
-  // ยังกดอยู่ → เป็นสะพาน
-  if (bridgeStatus == 0) {          // ขาขึ้นสะพาน
-    followLineFor(speed, BRIDGE_UP_MS);
-    bridgeStatus = 1;
-    return BRIDGE_CLIMB;
-  }
-  // ขาลงสะพาน
-  while (limitSwitchPressed()) {}
-  forwardFor(slowSpeed - BRIDGE_DOWN_SPEED_OFFSET, BRIDGE_DOWN_MS);
-  bridgeStatus = 0;
-  return BRIDGE_DESCEND;
+// เช็คตะเกียบ/สะพาน (ลิมิตสวิตช์ — อ่านแบบดิจิทัล) — ยุบรวมกันเป็นอันเดียวแล้ว
+// ถ้าสวิชถูกกด = เจอสิ่งกีดขวาง (ตะเกียบหรือสะพาน — พฤติกรรมคล้ายกัน ไม่ต้องแยก)
+// → เดินตามเส้นตามเวลา BRIDGE_CLEAR_MS ให้พ้นไปเลย (ระยะเดียวใน config.h)
+void checkBridge() {
+  if (!limitSwitchPressed()) return;        // สวิชไม่ถูกกด = ปกติ ไม่ต้องทำอะไร
+  followLineFor(speed, BRIDGE_CLEAR_MS);    // เดินตามเส้นข้ามตะเกียบ/สะพานให้พ้น
+  stopMotors();
 }

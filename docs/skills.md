@@ -75,3 +75,15 @@
 - **Root Cause:** โค้ด analog ค้างมาจากช่วงที่ลิมิตสวิตช์ใช้ขาเดียวกับเซนเซอร์หลังซ้าย (analog 7); เปลี่ยนสายจริงแยกขาแล้ว (commit แก้พิน) แต่โค้ดยังอ่าน analog
 - **Correct Pattern/Solution:** อ่านแบบดิจิทัล `limitSwitchPressed() = (digitalRead(PIN_LIMIT_SWITCH) == LIMIT_SWITCH_PRESSED_LEVEL)` + `pinMode(PIN_LIMIT_SWITCH, INPUT)` ใน setup; ถ้าสายต่อกลับขั้ว → แก้ `LIMIT_SWITCH_PRESSED_LEVEL` (1/0) ใน config.h; ลบ `refLimitSwitch`/`REF_LIMIT_SWITCH` (ค่า analog) ทิ้งทั้งหมด
 - **Date Added:** 2026-08-27
+
+### 🛠️ Robot_High_Automation - ตะเกียบ/สะพานยุบรวมเป็นอันเดียว (ถ้ากดสวิช → เดินตามเวลาให้พ้น)
+- **Context/Problem:** เดิม `checkBridge()` แยกสถานะ 3 แบบ (ตะเกียบ probe / ขาขึ้นสะพาน / ขาลงสะพาน) พร้อม state machine `bridgeStatus` (0/1/2) — โค้ดยาว ซับซ้อน จูนเยอะ (`BRIDGE_PROBE_MS`, `FORK_CLEAR_MS`, `BRIDGE_UP_MS`, `BRIDGE_DOWN_MS`, ...)
+- **Root Cause:** ตะเกียบกับสะพานต่างก็ใช้ลิมิตสวิตช์ตัวเดียวกัน และพฤติกรรม "เดินข้ามไปให้พ้น" ก็เหมือนกัน — ไม่จำเป็นต้องแยก แต่แยกเพราะกลัวระยะไม่พอ
+- **Correct Pattern/Solution:** `checkBridge()` เป็น `void`: ถ้าสวิชถูกกด → `followLineFor(speed, BRIDGE_CLEAR_MS)` เดียวจบแล้ว `stopMotors()`; ลบ `bridgeStatus` + ค่าคงที่เกินทั้งหมด เหลือ `BRIDGE_CLEAR_MS` ตัวเดียว (ค่าต้องครอบคลุมสะพานที่ยาวที่สุด = ขาขึ้น+ลง) — เวลาเลี้ยว/ถอยไม่ต้องพึ่งสถานะสะพานอีกต่อไป
+- **Date Added:** 2026-08-27
+
+### 🛠️ Robot_High_Automation - หน้าจอ OLED รวมศูนย์ที่ Logics_Display.ino + ฟอนต์เป็น ASCII เท่านั้น
+- **Context/Problem:** หน้าจอ OLED กระจัดกระจายในหลายไฟล์ (init, setup, kick, menu, calibrate, finish) และ `textSize` ตกค้าง (ตั้ง 2x ที่หน้า Starting แล้วไม่กลับเป็น 1x → หน้าจอระหว่างวิ่งเพี้ยน) — แก้หน้าจอทีละจุดสับสน
+- **Root Cause:** ไม่มีจุดรวมวาดหน้าจอ; ฟอนต์ OLED เป็น ASCII (ใส่ไทย/ยูนิโค้ดไม่ได้)
+- **Correct Pattern/Solution:** สร้าง `Logics_Display.ino` = จุดเดียวรวมฟังก์ชันวาดหน้าจอทั้งหมด (`drawWelcomeScreen`, `drawStartScreen`, `drawRunStatus`, `drawKickScreen`, `drawSpeedMenuScreen`, `drawFrontCalib`, `drawFinishScreen` + helper `oledReset()` ที่เซ็ต `textSize(1)` ทุกครั้งกัน textSize ตกค้าง, `modeName()`, `colorName()`, `countFor()`); ตัวลอจิกเรียกแค่ฟังก์ชันเดียว อย่าแตะ `oled.text()` ตรงๆ ข้างนอก; คงการแสดงผลเป็น ASCII เท่านั้น
+- **Date Added:** 2026-08-27

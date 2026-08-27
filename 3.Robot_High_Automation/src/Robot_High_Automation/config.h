@@ -161,7 +161,6 @@ static const SpeedBand SPEED_BANDS[] = {
 
 // ---- การสแกน/ปล่อยลูกบาศก์ (โหมด 5/6) ----
 #define CELL_SCAN_TIME_MS     420   // เวลาวิ่ง 1 ช่อง (ก่อนเจอแยก) ถ้าช่องยาว/สั้นกว่า 1350 ปรับตรงนี้
-#define BRIDGE_CLEAR_MS       500    // เดินข้ามพ้นสะพานหลังลงจากสะพาน
 #define JUNCTION_BACKUP_MS    150    // ถอยออกจากแยกหลังเจอเส้นดำ (แยกธรรมดา ไม่ใช่พื้นที่วาง)
 #define COLOR_READ_SETTLE_MS  50     // รอให้เซนเซอร์สีนิ่งก่อนอ่าน/หลังอ่าน
 #define FLAG_BACKUP_SPEED     50     // ความเร็วถอยสั้นๆ ก่อนยกธงจบงาน
@@ -181,13 +180,10 @@ static const SpeedBand SPEED_BANDS[] = {
 #define BACK_PID_ADJUST            8     // จำนวนความเร็ว (0-100) ที่หน่วงล้อฝั่งที่เห็นเส้นก่อนตอนถอยหลัง (กันหุ่นเอียง/ถอยไม่ตรง) ยิ่งสูงยิ่งเลี้ยวจัด
 #define JUNCTION_BACKOFF_MS        200   // ถอยออกจากเส้นดำนิดหน่อยเมื่อเซนเซอร์หน้าเจอเส้น (หุ่นเร็ว/เบรกไม่ทัน) — เรียกก่อนเช็คสี
 
-// ---- ตะเกียบ/สะพาน (ลิมิตสวิตช์) ----
-#define BRIDGE_PROBE_MS       50     // เดินหน้าแตะสวิตช์สั้นๆ เพื่อตรวจ
-#define FORK_CLEAR_SPEED_OFFSET  5   // ลดความเร็ว slowSpeed อีก 5% ตอนข้ามตะเกียบ
-#define FORK_CLEAR_MS         1700   // ระยะเดินข้ามตะเกียบจนพ้น
-#define BRIDGE_UP_MS          2350   // ระยะเดินตามเส้นขึ้นสะพาน
-#define BRIDGE_DOWN_SPEED_OFFSET 10  // ลดความเร็ว slowSpeed อีก 10% ตอนลงสะพาน
-#define BRIDGE_DOWN_MS        100    // ระยะเดินลงจากสะพาน
+// ---- ตะเกียบ/สะพาน (ลิมิตสวิตช์) — ยุบรวมกันเป็นอันเดียว ----
+// สวิชถูกกด = เจอสิ่งกีดขวาง (ตะเกียบหรือสะพาน — พฤติกรรมคล้ายกัน ไม่ต้องแยกสถานะ)
+// → เดินตามเส้นตามเวลา BRIDGE_CLEAR_MS ให้พ้นไปเลย (ค่าต้องครอบคลุมสะพานที่ยาวที่สุด = ขาขึ้น+ลง)
+#define BRIDGE_CLEAR_MS  2900   // เดินตามเส้นข้ามตะเกียบ/สะพานจนพ้น (จูนจากสนามจริง)
 
 // ---- จัดตำแหน่ง/หมุนวนหาเส้น ----
 #define PIVOT_ALIGN_TIMEOUT_MS    500  // หมดเวลาหมุนวนหาเส้นใน followLineAndAlign (เกิน = ทางตัน)
@@ -212,8 +208,9 @@ static const SpeedBand SPEED_BANDS[] = {
 // 8) เมนู/ปุ่ม (ตอนเริ่มงาน)
 // ═══════════════════════════════════════════════════════════════════════════
 
-#define SW_HOLD_SERVO_CAL_MS  2000   // กด SW_B ค้าง >= 2วิ = ทดสอบเซอร์โว + calibrate
+#define SW_HOLD_SERVO_CAL_MS  2000   // กด OK ค้าง >= 2วิ = ทดสอบเซอร์โว + calibrate
 #define SW_HOLD_MODE6_MS      1000   // กด SW_A ค้าง >= 1วิ = โหมด 6, กดสั้น = โหมด 5
+#define SW_HOLD_MODE8_MS      1000   // กด SW_B ค้าง >= 1วิ = โหมด 8, กดสั้น = โหมด 7
 #define KNOB_ADC_MIN          0      // ขอบล่าง ADC ของ knob
 #define KNOB_ADC_MAX          1023   // ขอบบน ADC ของ knob
 #define TEST_MODE_MIN         0      // โหมดทดสอบต่ำสุด (จาก knob)
@@ -283,12 +280,6 @@ static const SpeedBand SPEED_BANDS[] = {
 #define STATUS_NORMAL    0    // ยังเดินตามเส้นต่อ
 #define STATUS_JUNCTION  2    // เจอแยก/เส้นดำ
 #define STATUS_DEADEND   4    // ทางตัน (อีกฝั่งไม่มีเส้น)
-
-// ค่ารหัสสถานะของ checkBridge (ตะเกียบ/สะพาน)
-#define BRIDGE_FORK      1    // เจอตะเกียบ (fork)
-#define BRIDGE_NORMAL    2    // ปกติ (ไม่เจออะไร)
-#define BRIDGE_CLIMB     3    // ขาขึ้นสะพาน
-#define BRIDGE_DESCEND   4    // ขาลงสะพาน
 
 // error กลางเส้นของ PID (เมื่อเซนเซอร์กลางเจอดำ = อยู่บนแยกพอดี)
 #define LINE_ERROR_CENTER  100

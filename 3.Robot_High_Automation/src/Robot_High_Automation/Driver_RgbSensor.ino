@@ -16,11 +16,15 @@ static uint16_t rgbTo565(uint16_t r, uint16_t g, uint16_t b) {
 void initColorSensor() {
   delay(COLOR_POWERON_DELAY_MS);
   Serial.begin(SERIAL_BAUD);
-  oled.text(0, 0, "Color Sensor Test!");
+  oledReset();
+  oled.text(0, 0, "== RGB SENSOR ==");
+  oled.text(2, 0, "Testing TCS34725...");
+  oled.show();
   if (tcs.begin()) {
-    oled.text(1, 0, "Found sensor!");
+    oled.text(3, 0, ">> FOUND <<");
   } else {
-    oled.text(1, 0, "No TCS34725 found!");
+    oled.text(3, 0, "!! NOT FOUND !!");
+    oled.text(5, 0, "Check wiring!");
   }
   oled.show();
   tcs.setIntegrationTime(COLOR_OPERATING_INTEGRATION_TIME);

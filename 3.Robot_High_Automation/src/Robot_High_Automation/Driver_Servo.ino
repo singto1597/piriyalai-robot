@@ -6,10 +6,9 @@
 // ปล่อยลูกบาศก์สีแดง (ช่อง 2 หมุนไป SERVO_DROP_0_DEG ปล่อย แล้วกลับ SERVO_REST_DEG)
 void kickRed() {
   AO();
+  drawKickScreen(Red);
   servo(SERVO_PORT_GATE_2, SERVO_DROP_0_DEG);
   impactPulse();
-  oled.text(3, 0, "  Red   ");
-  oled.show();
   delay(SERVO_KICK_HOLD_MS);
   servo(SERVO_PORT_GATE_2, SERVO_REST_DEG);
 }
@@ -17,10 +16,9 @@ void kickRed() {
 // ปล่อยลูกบาศก์สีเหลือง (ช่อง 2 หมุนไป SERVO_DROP_180_DEG ปล่อย แล้วกลับ SERVO_REST_DEG)
 void kickYellow() {
   AO();
+  drawKickScreen(Yellow);
   servo(SERVO_PORT_GATE_2, SERVO_DROP_180_DEG);
   impactPulse();
-  oled.text(3, 0, "  Yellow   ");
-  oled.show();
   delay(SERVO_KICK_HOLD_MS);
   servo(SERVO_PORT_GATE_2, SERVO_REST_DEG);
 }
@@ -28,10 +26,9 @@ void kickYellow() {
 // ปล่อยลูกบาศก์สีน้ำเงิน (ช่อง 1 หมุนไป SERVO_DROP_0_DEG ปล่อย แล้วกลับ SERVO_REST_DEG)
 void kickBlue() {
   AO();
+  drawKickScreen(Blue);
   servo(SERVO_PORT_GATE_1, SERVO_DROP_0_DEG);
   impactPulse();
-  oled.text(3, 0, "  Blue   ");
-  oled.show();
   delay(SERVO_KICK_HOLD_MS);
   servo(SERVO_PORT_GATE_1, SERVO_REST_DEG);
 }
@@ -39,10 +36,9 @@ void kickBlue() {
 // ปล่อยลูกบาศก์สีเขียว (ช่อง 1 หมุนไป SERVO_DROP_180_DEG ปล่อย แล้วกลับ SERVO_REST_DEG)
 void kickGreen() {
   AO();
+  drawKickScreen(Green);
   servo(SERVO_PORT_GATE_1, SERVO_DROP_180_DEG);
   impactPulse();
-  oled.text(3, 0, "  Green   ");
-  oled.show();
   delay(SERVO_KICK_HOLD_MS);
   servo(SERVO_PORT_GATE_1, SERVO_REST_DEG);
 }
