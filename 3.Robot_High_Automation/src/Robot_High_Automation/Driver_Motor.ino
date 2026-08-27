@@ -38,6 +38,54 @@ void stopMotors() {
   delay(STOP_SETTLE_MS);
 }
 
+// ถอยหลังด้วย PID เซนเซอร์หลัง: ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ
+// ระหว่างถอย ปรับความเร็วล้อซ้าย/ขวาให้หุ่นถอยตรง (ฝั่งที่เห็นเส้นก่อน = หุ่นเอียง → หน่วงล้อฝั่งนั้น)
+// คืนค่า true = เจอเส้นดำทั้ง 2 ข้าง, false = ถอยครบ timeoutMs ยังไม่เจอ (กันค้าง)
+bool reverseWithBackPid(int motorSpeed, int stepMs, int timeoutMs) {
+  baseSpeed = motorSpeed;
+  updateSpeedPidParams();
+  startStopwatch();
+  BK2(backLeftBaseSpeed, backRightBaseSpeed);
+
+  while (1) {
+    updateBackLineBinary();
+    if ((backL == 0) && (backR == 0)) break;          // ทั้ง 2 ข้างเจอเส้นดำ → พอ
+    if (stopwatchElapsed() > timeoutMs) {              // กันค้าง: ถอยนานเกินยังไม่เจอเส้น
+      stopMotors();
+      return false;
+    }
+    // PID เซนเซอร์หลัง: ปรับล้อซ้าย/ขวาให้ถอยตรง (ความต่างใน config.h)
+    int bl = backLeftBaseSpeed;
+    int br = backRightBaseSpeed;
+    if (backL == 0)      { bl -= BACK_PID_ADJUST; br += BACK_PID_ADJUST; }
+    else if (backR == 0) { br -= BACK_PID_ADJUST; bl += BACK_PID_ADJUST; }
+    BK2(bl, br);
+    delay(stepMs);
+  }
+  stopMotors();
+  return true;
+}
+
+// ถอยหลังเป็นเวลา timeMs ด้วย PID เซนเซอร์หลัง (ปรับให้ถอยตรง)
+// ใช้ถอยระยะสั้นๆ เช่น กันเบรกไม่ทัน (กลับเข้าช่อง) หรือถอยก่อนปล่อยแดง/เหลือง
+void reverseForWithBackPid(int motorSpeed, int timeMs) {
+  baseSpeed = motorSpeed;
+  updateSpeedPidParams();
+  startStopwatch();
+  BK2(backLeftBaseSpeed, backRightBaseSpeed);
+
+  while (stopwatchElapsed() < timeMs) {
+    updateBackLineBinary();
+    int bl = backLeftBaseSpeed;
+    int br = backRightBaseSpeed;
+    if (backL == 0)      { bl -= BACK_PID_ADJUST; br += BACK_PID_ADJUST; }
+    else if (backR == 0) { br -= BACK_PID_ADJUST; bl += BACK_PID_ADJUST; }
+    BK2(bl, br);
+    delay(pidLoopDelayMs);
+  }
+  stopMotors();
+}
+
 // หมุนวนรอบตัวเองไปทางขวา (ล้อซ้ายถอย / ล้อขวาเดินหน้า) ด้วยความเร็ว spinSpeed
 void pivotRight(int spinSpeed) {
   AO();

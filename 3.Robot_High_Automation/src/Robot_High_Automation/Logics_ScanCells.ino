@@ -63,6 +63,15 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
 // แล้วเช็คว่าเก็บครบ 4 สีหรือยัง (ครบ → ยกธงจบงาน)
 void checkFloorAndKick() {
   stopMotors();
+
+  // กันเบรกไม่ทัน (หุ่นเร็ว วิ่งเลยเส้นดำมา): ถ้าเซนเซอร์หลังทั้ง 2 ข้างเห็นเส้นดำ
+  // = หุ่นวิ่งข้ามเส้นไปแล้ว (RGB อาจไปอ่านสีฝั่งตรงข้ามเส้น) → ถอยกลับเข้าช่องเดิมก่อนอ่านสี
+  // (ระยะถอยใน config.h — JUNCTION_OVERSHOOT_BACKUP_MS)
+  updateBackLineBinary();
+  if ((backL == 0) && (backR == 0)) {
+    reverseForWithBackPid(slowSpeed, JUNCTION_OVERSHOOT_BACKUP_MS);   // (reverseForWithBackPid หยุดมอเตอร์ให้แล้ว)
+  }
+
   delay(COLOR_READ_SETTLE_MS);
   detectFloorColor();
   delay(COLOR_READ_SETTLE_MS);
@@ -72,6 +81,14 @@ void checkFloorAndKick() {
   if ((floorColor == Red) || (floorColor == Yellow)) {
     stopMotors();
     detectFloorColor();
+  }
+
+  // สีที่เคยวางไปเรียบร้อยแล้ว (count > 0) → ถือเป็นสีขาว (ข้าม ไม่วางซ้ำ แล้ววนลูปต่อไป)
+  if ((floorColor == Red && redCount > 0) ||
+      (floorColor == Yellow && yellowCount > 0) ||
+      (floorColor == Blue && blueCount > 0) ||
+      (floorColor == Green && greenCount > 0)) {
+    floorColor = White;
   }
 
   // พื้นที่วาง (ไม่ใช่ขาว/ดำ) → วางบล็อค routine เดียวกันทุกสี ไม่แบ่งสี
@@ -90,46 +107,44 @@ void checkFloorAndKick() {
 }
 
 // วางบล็อค routine เดียวกันทุกสี (ไม่แบ่งสี):
-//   1) ปล่อยลูกบาศก์ตามสีที่เช็คเจอ
-//   2) ถอยหลังจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ
+//   1) ปล่อยลูกบาศก์ตามสีที่เช็คเจอ (แดง/เหลืองถอยออกก่อนปล่อย)
+//   2) ถอยหลังจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (PID เซนเซอร์หลังปรับให้ถอยตรง)
 //   3) ปรับให้ตรง (ให้เส้นตั้งฉาก/กึ่งกลางตัวหุ่น)
-//   4) เลี้ยวตามโหมด แล้วลูปหลักวนต่อไป
+//   4) เดินหน้าให้ห่างจากเส้น (กันหุ่นติด/หมุนทับเส้น)
+//   5) เลี้ยวตามโหมด แล้วลูปหลักวนต่อไป
 void placeBlockAndExit() {
   kickForColor(floorColor);              // ปล่อยลูกบาศก์ก่อน
-  reverseUntilBackLine();                // ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ
+  reverseWithBackPid(slowSpeed, PLACE_REVERSE_STEP_MS, PLACE_REVERSE_TIMEOUT_MS);  // ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (ปรับตรงด้วย PID เซนเซอร์หลัง)
   backwardAlign(PLACE_ALIGN_TOTAL_MS);   // ปรับให้ตรง
+  forwardFor(slowSpeed, PLACE_LEAVE_LINE_FORWARD_MS);   // เดินหน้าให้ห่างออกมาจากเส้น
   turnByMode();                          // เลี้ยวตามโหมด
 }
 
 // ปล่อยลูกบาศก์ตามสีที่ตรวจเจอ (ช่องเซอร์โว 1 = น้ำเงิน/เขียว, ช่อง 2 = แดง/เหลือง) + นับจำนวน
+// แดง/เหลืองปล่อยลึกเข้าไปในพื้นที่วาง → ถอยออกมานิดหน่อยก่อนแล้วค่อยปล่อย
 void kickForColor(int color) {
-  if (color == Blue)        { kickBlue();   blueCount++; }
-  else if (color == Green)  { kickGreen();  greenCount++; }
-  else if (color == Red)    { kickRed();    redCount++; }
-  else if (color == Yellow) { kickYellow(); yellowCount++; }
-}
-
-// ถอยหลังช้าๆ จนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (กันค้างด้วย timeout)
-void reverseUntilBackLine() {
-  startStopwatch();
-  backwardFor(slowSpeed, MOTION_START_TICK_MS);   // กระตุกมอเตอร์ให้เริ่มถอย
-  while (1) {
-    updateBackLineBinary();
-    if ((backL == 0) && (backR == 0)) break;                     // ทั้ง 2 ข้างเจอเส้นดำ → พอ
-    if (stopwatchElapsed() > PLACE_REVERSE_TIMEOUT_MS) break;    // กันค้าง (ถอยนานเกินไม่เจอเส้น)
-    backwardFor(slowSpeed, PLACE_REVERSE_STEP_MS);               // ถอยต่อไปทีละขั้น
+  if (color == Red) {
+    reverseForWithBackPid(slowSpeed, KICK_RED_YELLOW_BACKUP_MS);   // ถอยออกก่อนปล่อย
+    kickRed();
+    redCount++;
   }
-  stopMotors();
+  else if (color == Yellow) {
+    reverseForWithBackPid(slowSpeed, KICK_RED_YELLOW_BACKUP_MS);   // ถอยออกก่อนปล่อย
+    kickYellow();
+    yellowCount++;
+  }
+  else if (color == Blue)  { kickBlue();   blueCount++; }
+  else if (color == Green) { kickGreen();  greenCount++; }
 }
 
-// เช็คตะเกียบ/สะพานด้วยลิมิตสวิตช์ (PIN_LIMIT_SWITCH)
+// เช็คตะเกียบ/สะพานด้วยลิมิตสวิตช์ (PIN_LIMIT_SWITCH — อ่านแบบดิจิทัล)
 // คืนค่า: BRIDGE_FORK = เจอตะเกียบ, BRIDGE_NORMAL = ปกติ, BRIDGE_CLIMB = ขึ้นสะพาน, BRIDGE_DESCEND = ลงสะพาน
 int checkBridge() {
-  if (analog(PIN_LIMIT_SWITCH) <= refLimitSwitch) return BRIDGE_NORMAL;   // สวิชไม่ถูกกด (= เดิม: !(> ref)) = ปกติ
+  if (!limitSwitchPressed()) return BRIDGE_NORMAL;   // สวิชไม่ถูกกด = ปกติ
 
   // สวิชถูกกด → เดินแตะสวิชอีกที ถ้าพ้นแล้ว = เจอตะเกียบ
   forwardFor(slowSpeed, BRIDGE_PROBE_MS);
-  if (analog(PIN_LIMIT_SWITCH) < refLimitSwitch) {
+  if (!limitSwitchPressed()) {
     forwardFor(slowSpeed - FORK_CLEAR_SPEED_OFFSET, FORK_CLEAR_MS);
     stopMotors();
     return BRIDGE_FORK;
@@ -142,7 +157,7 @@ int checkBridge() {
     return BRIDGE_CLIMB;
   }
   // ขาลงสะพาน
-  while (analog(PIN_LIMIT_SWITCH) > refLimitSwitch) {}
+  while (limitSwitchPressed()) {}
   forwardFor(slowSpeed - BRIDGE_DOWN_SPEED_OFFSET, BRIDGE_DOWN_MS);
   bridgeStatus = 0;
   return BRIDGE_DESCEND;

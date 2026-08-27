@@ -38,7 +38,6 @@ int pidLoopDelayMs;            // หน่วงเวลาของวง PID
 int refL3 = REF_LINE_L3, refL2 = REF_LINE_L2, refL1 = REF_LINE_L1, refC = REF_LINE_C;
 int refR1 = REF_LINE_R1, refR2 = REF_LINE_R2, refR3 = REF_LINE_R3;   // เซนเซอร์หน้า 7 ตัว
 int refBackL = REF_BACK_LEFT, refBackR = REF_BACK_RIGHT;             // เซนเซอร์หลัง 2 ตัว
-int refLimitSwitch = REF_LIMIT_SWITCH;   // ค่าอ้างอิงลิมิตสวิตช์ (ตะเกียบ/สะพาน)
 
 // ===== ค่าเซนเซอร์เส้น (0 = เจอดำ, 1 = ขาว) =====
 int sensorL3, sensorL2, sensorL1, sensorC, sensorR1, sensorR2, sensorR3;
@@ -70,6 +69,7 @@ int knobValue = 0;
 void setup() {
   baseSpeed = speed;
   updateSpeedPidParams();
+  pinMode(PIN_LIMIT_SWITCH, INPUT);   // ลิมิตสวิตช์ (ตะเกียบ/สะพาน) — อ่านแบบดิจิทัล
 
   // ใช้ RGB sensor จำแนกสีพื้น (โหมด 5-8 ใช้สีพื้นตลอด)
   initColorSensor();
