@@ -36,6 +36,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
       checkFloorAndKick();
       showRunStatus();
       if ((floorColor == White) || (floorColor == Black)) turnByMode();
+      else if (floorColor == Dup) { backwardFor(speed, DUP_CELL_BACKUP_MS); turnByMode(); }   // เคสพิเศษ: ช่องวางซ้ำ → ถอยเยอะกว่าเดิม
       // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (เลี้ยวตามโหมดไปแล้วใน placeBlockAndExit)
     }
 
@@ -46,6 +47,10 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
       showRunStatus();
       if ((floorColor == White) || (floorColor == Black)) {   // แยกธรรมดา → ถอยออกแยก แล้วเลี้ยวสวนโหมด
         backwardFor(speed, JUNCTION_BACKUP_MS);
+        turnAgainstMode();
+      }
+      else if (floorColor == Dup) {                            // เคสพิเศษ: ช่องวางซ้ำ → ถอยเยอะกว่าเดิม แล้วเลี้ยวสวนโหมด
+        backwardFor(speed, DUP_CELL_BACKUP_MS);
         turnAgainstMode();
       }
       // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (ปล่อย-ถอย-ปรับ-เลี้ยวตามโหมด) วนลูปต่อไป
@@ -76,12 +81,13 @@ void checkFloorAndKick() {
     detectFloorColor();
   }
 
-  // สีที่เคยวางไปเรียบร้อยแล้ว (count > 0) → ถือเป็นสีขาว (ข้าม ไม่วางซ้ำ แล้ววนลูปต่อไป)
+  // ช่องสีที่วางลูกบาศก์ไปแล้ว (count > 0) → เคสพิเศษ Dup (ไม่ใช่ขาว/ดำแล้ว)
+  // ปล่อยข้าม ไม่วางซ้ำ — caller ถอยเยอะกว่าเดิมก่อนเลี้ยว (ดู followLineToColorBox / autoDriveLaneRgb)
   if ((floorColor == Red && redCount > 0) ||
       (floorColor == Yellow && yellowCount > 0) ||
       (floorColor == Blue && blueCount > 0) ||
       (floorColor == Green && greenCount > 0)) {
-    floorColor = White;
+    floorColor = Dup;
   }
 
   // พื้นที่วาง (ไม่ใช่ขาว/ดำ) → วางบล็อค routine เดียวกันทุกสี ไม่แบ่งสี
@@ -132,9 +138,9 @@ void kickForColor(int color) {
 
 // เช็คตะเกียบ/สะพาน (ลิมิตสวิตช์ — อ่านแบบดิจิทัล) — ยุบรวมกันเป็นอันเดียวแล้ว
 // ถ้าสวิชถูกกด = เจอสิ่งกีดขวาง (ตะเกียบหรือสะพาน — พฤติกรรมคล้ายกัน ไม่ต้องแยก)
-// → เดินตามเส้นตามเวลา BRIDGE_CLEAR_MS ให้พ้นไปเลย (ระยะเดียวใน config.h)
+// → เดินตรงตามเวลา BRIDGE_CLEAR_MS ให้พ้นไปเลย (ไม่ตามเส้น เพราะเซนเซอร์เส้นมั่วช่วงสะพาน/ตะเกียบ)
 void checkBridge() {
   if (!limitSwitchPressed()) return;        // สวิชไม่ถูกกด = ปกติ ไม่ต้องทำอะไร
-  followLineFor(speed, BRIDGE_CLEAR_MS);    // เดินตามเส้นข้ามตะเกียบ/สะพานให้พ้น
+  forwardFor(speed, BRIDGE_CLEAR_MS);       // เดินตรงตามเวลาให้พ้น (ระยะเดียวใน config.h)
   stopMotors();
 }

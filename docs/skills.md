@@ -87,3 +87,15 @@
 - **Root Cause:** ไม่มีจุดรวมวาดหน้าจอ; ฟอนต์ OLED เป็น ASCII (ใส่ไทย/ยูนิโค้ดไม่ได้)
 - **Correct Pattern/Solution:** สร้าง `Logics_Display.ino` = จุดเดียวรวมฟังก์ชันวาดหน้าจอทั้งหมด (`drawWelcomeScreen`, `drawStartScreen`, `drawRunStatus`, `drawKickScreen`, `drawSpeedMenuScreen`, `drawFrontCalib`, `drawFinishScreen` + helper `oledReset()` ที่เซ็ต `textSize(1)` ทุกครั้งกัน textSize ตกค้าง, `modeName()`, `colorName()`, `countFor()`); ตัวลอจิกเรียกแค่ฟังก์ชันเดียว อย่าแตะ `oled.text()` ตรงๆ ข้างนอก; คงการแสดงผลเป็น ASCII เท่านั้น
 - **Date Added:** 2026-08-27
+
+### 🛠️ Robot_High_Automation - ข้ามสะพาน/ตะเกียบ = เดินตรงตามเวลา ไม่ตามเส้น (เซนเซอร์เส้นมั่วช่วงนั้น)
+- **Context/Problem:** เดิม `checkBridge()` ใช้ `followLineFor(speed, BRIDGE_CLEAR_MS)` เดินตามเส้นข้ามสะพาน/ตะเกียบ แต่บนสะพาน/ตะเกียบเซนเซอร์เส้นอ่านค่ามั่ว (พื้นเอียง/เปลี่ยนเงา/เซนเซอร์ลอย) → PID ตามเส้นเพี้ยน หุ่นวิ่งไม่ตรง
+- **Root Cause:** ตอนข้ามสะพาน/ตะเกียบไม่ต้องการ "ตามเส้น" เลย — แค่ข้ามไปให้พ้นตามเวลา (เส้นที่ต้องตามจริงอยู่หลังพ้นสะพาน)
+- **Correct Pattern/Solution:** `checkBridge()` = ถ้าสวิชถูกกด → `forwardFor(speed, BRIDGE_CLEAR_MS)` เดินตรงตามเวลาอย่างเดียว (ไม่แตะ PID/เซนเซอร์เส้น) แล้ว `stopMotors()`; `BRIDGE_CLEAR_MS` ตัวเดียวต้องครอบคลุมสะพานที่ยาวที่สุด (ขาขึ้น+ลง)
+- **Date Added:** 2026-08-27
+
+### 🛠️ Robot_High_Automation - ช่องสีที่วางลูกบาศก์ไปแล้ว = เคสพิเศษ Dup (แยกจากขาว/ดำ, ถอยเยอะกว่าเดิม)
+- **Context/Problem:** เดิมเจอช่องสีที่ count>0 (วางลูกบาศก์ไปแล้ว) → จับมาเป็น `floorColor = White` ปนกับแยกขาว/ดำ → ถอยสั้นแค่ `JUNCTION_BACKUP_MS` แล้วเลี้ยว บางทีถอยไม่พอ ติดลูกบาศก์/เลี้ยวไม่หลุด
+- **Root Cause:** พื้นที่วางซ้ำกับแยกธรรมดาใช้ค่า floorColor เดียวกัน (White) → แยกพฤติกรรมไม่ออก
+- **Correct Pattern/Solution:** เพิ่มค่า sentinel `#define Dup 6` (ต่อจาก Red=5) — ช่องวางซ้ำตั้ง `floorColor = Dup` ไม่ใช่ White; caller ทั้งโหมด 5/6 (สอง path: ครบเวลา + เจอแยก) และ 7/8 ตรวจ `else if (floorColor == Dup)` → ถอย `DUP_CELL_BACKUP_MS` (เยอะกว่า JUNCTION_BACKUP_MS) แล้วเลี้ยว; `colorName()` ต้องรองรับ Dup → "DUP!"; ⚠️ ในโหมด 7/8 อย่าตรวจแค่ `(floorColor != White && != Black)` ไม่งั้น Dup จะหลุดไปทาง handleDropZoneCell — ต้องแยก Dup เป็นเคสก่อน
+- **Date Added:** 2026-08-27

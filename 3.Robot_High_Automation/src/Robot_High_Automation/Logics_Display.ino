@@ -23,6 +23,7 @@ const char* colorName(int color) {
   if (color == White)  return "WHITE";
   if (color == Yellow) return "YELLOW";
   if (color == Red)    return "RED";
+  if (color == Dup)    return "DUP!";   // ช่องสีที่วางลูกบาศก์ไปแล้ว (เคสพิเศษ)
   return "?";
 }
 

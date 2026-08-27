@@ -57,8 +57,12 @@ void autoDriveLaneRgb() {
       // เจอแยก/เส้นดำ → ถอยนิดหน่อย (กันเบรกไม่ทัน) แล้วค่อยเช็คสีพื้นที่วาง
       if (status == STATUS_JUNCTION) backOffJunction();
       checkFloorAndKick();
-      if ((floorColor != White) && (floorColor != Black)) handleDropZoneCell();   // เจอพื้นที่วาง
-      else handleAdjacentLane();                                                   // เดินไปเส้นข้างๆ
+      if ((floorColor == White) || (floorColor == Black)) handleAdjacentLane();   // แยกธรรมดา → เดินไปเส้นข้างๆ
+      else if (floorColor == Dup) {                                               // เคสพิเศษ: ช่องวางซ้ำ → ถอยเยอะกว่าเดิมก่อนไปเส้นข้างๆ
+        backwardFor(speed, DUP_CELL_BACKUP_MS);
+        handleAdjacentLane();
+      }
+      else handleDropZoneCell();                                                   // เจอพื้นที่วาง
     }
   }
 }
