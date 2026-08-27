@@ -64,7 +64,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
 // เรียกก่อนเช็คสี เพื่อให้ RGB sensor กลับมาอยู่เหนือช่องเดิม ไม่ไปอ่านสีฝั่งตรงข้ามเส้น
 // (ระยะถอยใน config.h — JUNCTION_BACKOFF_MS)
 void backOffJunction() {
-  reverseForWithBackPid(slowSpeed, JUNCTION_BACKOFF_MS);
+  reverseForWithBackPid(slowSpeed - 5, JUNCTION_BACKOFF_MS);
 }
 
 // เช็คสีพื้น ถ้าเป็นพื้นที่วางลูกบาศก์ (สีใดก็ได้) → วางบล็อค routine เดียว
