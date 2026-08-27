@@ -60,3 +60,18 @@
 - **Root Cause:** ใช้เวลา (ms) กำหนดระยะถอย ไม่ได้ใช้อินพุตเซนเซอร์หลัง → ระยะทางจริงเปลี่ยนตามสนาม/แบตเตอรี่/น้ำหนัก
 - **Correct Pattern/Solution:** routine วางบล็อคเดียวทุกสี `placeBlockAndExit()` = (1) `kickForColor()` ปล่อยลูกบาศก์ก่อน (2) `reverseUntilBackLine()` ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (`backL==0 && backR==0`) พร้อม `PLACE_REVERSE_TIMEOUT_MS` กันค้าง (3) `backwardAlign()` ปรับให้ตรง (4) `turnByMode()` เลี้ยวตามโหมด แล้วลูปหลักวนต่อ เก็บการอ่านสีแดง/เหลืองซ้ำเพื่อยืนยันสี (skill เดิม) แต่ motion ไม่แบ่งสีแล้ว — constant ทั้งหมดรวมใน config.h section `วางบล็อค`
 - **Date Added:** 2026-08-26
+
+### 🛠️ Robot_High_Automation - ถอยหลังด้วย PID เซนเซอร์หลัง + กันเบรกไม่ทันที่แยก
+- **Context/Problem:** หุ่นเร็ว เบรกไม่ทัน วิ่งเลยเส้นดำที่แยก → RGB sensor อาจไปอ่านสีฝั่งตรงข้ามเส้น (เช็คสีผิดช่อง); และตอนถอยหลังหุ่นถอยเอียง/ไม่ตรงเพราะความเร็วล้อเท่ากันทุกข้าง ไม่มีตัวปรับ
+- **Root Cause:** ใช้เวลา (ms) กำหนดระยะถอยอย่างเดียว ไม่มีเซนเซอร์ป้อนกลับ; การถอยตรงใช้ความเร็วล้อเท่ากันหมด ไม่มีกลไกปรับให้ตรงตอนถอย
+- **Correct Pattern/Solution:**
+  1. **กัน overshoot:** ใน `checkFloorAndKick()` ก่อนอ่านสี เช็ค `backL==0 && backR==0` (เซนเซอร์หลังทั้ง 2 ข้างเห็นเส้น = วิ่งข้ามเส้นมาแล้ว) → `reverseForWithBackPid(slowSpeed, JUNCTION_OVERSHOOT_BACKUP_MS)` ถอยกลับเข้าช่องก่อนค่อยเช็คสี (เวลาถอยอยู่ใน config.h)
+  2. **PID เซนเซอร์หลัง:** `reverseWithBackPid()` (ถอยจนหลังทั้ง 2 ข้างเจอเส้น) / `reverseForWithBackPid()` (ถอยตามเวลา) — ฝั่งที่เห็นเส้นก่อน = หุ่นเอียง → หน่วงล้อฝั่งนั้น เร่งล้อตรงข้าม (`BACK_PID_ADJUST` อยู่ใน config.h) ให้ถอยตรง
+  3. วางบล็อค: แดง/เหลืองปล่อยลึก → `kickForColor` ถอยออกก่อนปล่อย (`KICK_RED_YELLOW_BACKUP_MS`); หลัง `backwardAlign` เดินหน้าให้ห่างเส้น (`PLACE_LEAVE_LINE_FORWARD_MS`) ก่อนเลี้ยว; สีที่เคยวางไปแล้ว (count>0) ถือเป็นขาว → ข้าม ไม่วางซ้ำ
+- **Date Added:** 2026-08-27
+
+### 🛠️ Robot_High_Automation - ลิมิตสวิตช์เปลี่ยนจาก analog read เป็น digital read
+- **Context/Problem:** เดิม `checkBridge()` อ่านลิมิตสวิตช์จาก `analog(PIN_LIMIT_SWITCH)` เทียบ `refLimitSwitch` (4000) — แต่วงจรจริงเดินสายลิมิตสวิตช์บนขา GPIO แยก (PIN_LIMIT_SWITCH=22) แล้ว การอ่าน analog บนขาดิจิทัลไม่ถูกต้อง
+- **Root Cause:** โค้ด analog ค้างมาจากช่วงที่ลิมิตสวิตช์ใช้ขาเดียวกับเซนเซอร์หลังซ้าย (analog 7); เปลี่ยนสายจริงแยกขาแล้ว (commit แก้พิน) แต่โค้ดยังอ่าน analog
+- **Correct Pattern/Solution:** อ่านแบบดิจิทัล `limitSwitchPressed() = (digitalRead(PIN_LIMIT_SWITCH) == LIMIT_SWITCH_PRESSED_LEVEL)` + `pinMode(PIN_LIMIT_SWITCH, INPUT)` ใน setup; ถ้าสายต่อกลับขั้ว → แก้ `LIMIT_SWITCH_PRESSED_LEVEL` (1/0) ใน config.h; ลบ `refLimitSwitch`/`REF_LIMIT_SWITCH` (ค่า analog) ทิ้งทั้งหมด
+- **Date Added:** 2026-08-27
