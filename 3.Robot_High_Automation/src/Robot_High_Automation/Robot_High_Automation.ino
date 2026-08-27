@@ -60,7 +60,6 @@ int floorColor;                // สีพื้นปัจจุบัน
 int colorRank[6] = {Blue, Green, Black, White, Yellow, Red};   // ลำดับค่าอ้างอิงสี (index: Blue..Red)
 
 int redCount = 0, yellowCount = 0, blueCount = 0, greenCount = 0;   // จำนวนลูกบาศก์ที่ปล่อยไป
-int bridgeStatus = 0;          // 0 = ปกติ, 1 = ขึ้นสะพาน, 2 = ลงสะพาน
 
 // ===== โหมดทดสอบ (เลือกจาก knob ตอนเริ่ม) =====
 int modeSelect = 0;
@@ -74,48 +73,26 @@ void setup() {
   // ใช้ RGB sensor จำแนกสีพื้น (โหมด 5-8 ใช้สีพื้นตลอด)
   initColorSensor();
   delay(COLOR_INIT_SETTLE_MS);
-  detectFloorColor();      // อ่านสี 1 ครั้งตอน boot (เพื่อให้ showColorValue แสดงค่าจริง — ไม่อ่านซ้ำระหว่างวิ่ง)
-  showColorValue();
+  detectFloorColor();      // อ่านสี 1 ครั้งตอน boot (เพื่อให้ showRunStatus แสดงค่าจริง — ไม่อ่านซ้ำระหว่างวิ่ง)
+  showRunStatus();
   delay(COLOR_SHOW_HOLD_MS);
   beep(0);
 
-  // หน้าจอต้อนรับ + แสดงโหมด/ความเร็ว
-  oled.clear();
-  oled.mode(0);
-  oled.dim(true);
-  oled.textSize(1);
-  oled.text(0, 0, " PHIRIYALAI SCHOOL");
-  oled.text(1, 0, " High 4 Wheels POP32");
-  oled.text(2, 0, "      PR_ROBOT    ");
-  oled.text(3, 0, "     Speed = %d   ", speed);
-  oled.text(4, 0, "     ACCSpeed=%d", accSpeed);
-  oled.text(5, 0, "       Mode = %d   ", robotMode);
-  oled.show();
+  // หน้าจอต้อนรับ + แสดงโหมดทั้ง 4
+  drawWelcomeScreen();
+  delay(COLOR_SHOW_HOLD_MS / 2);
 
   // เลือกโหมดที่หน้าจอก่อนเริ่มงาน:
-  //  - หมุน knob + กด SW_B สั้นๆ   = ทดสอบโหมดตามตำแหน่ง knob (0-5)
-  //  - กด SW_B ค้าง >= SW_HOLD_SERVO_CAL_MS = ทดสอบเซอร์โว + ตั้งค่าอ้างอิงใหม่
-  //  - กด SW_A สั้นๆ                 = โหมด 5 (เช็คทีละช่อง เลี้ยวขวา)
-  //  - กด SW_A ค้าง >= SW_HOLD_MODE6_MS  = โหมด 6 (เช็คทีละช่อง เลี้ยวซ้าย)
+  //  - กด SW_A สั้นๆ            = โหมด 5 (เช็คทีละช่อง เลี้ยวขวา)
+  //  - กด SW_A ค้าง >= 1วิ       = โหมด 6 (เช็คทีละช่อง เลี้ยวซ้าย)
+  //  - กด SW_B สั้นๆ            = โหมด 7 (วิ่งตรงยาว เลี้ยวขวา)
+  //  - กด SW_B ค้าง >= 1วิ       = โหมด 8 (วิ่งตรงยาว เลี้ยวซ้าย)
+  //  - หมุน knob + กด OK สั้นๆ  = ทดสอบโหมดตามตำแหน่ง knob (0-5)
+  //  - กด OK ค้าง >= 2วิ         = ทดสอบเซอร์โว + ตั้งค่าอ้างอิงใหม่ (กลับมาเลือกโหมดต่อ)
   while (1) {
     knobValue = knob();
     modeSelect = map(knobValue, KNOB_ADC_MIN, KNOB_ADC_MAX, TEST_MODE_MIN, TEST_MODE_MAX);
-    oled.text(7, 0, "   TESTMode = %d   ", modeSelect);
-    oled.show();
-    if (SW_B()) {
-      startStopwatch();
-      beep(1);
-      while (SW_B()) {
-        if (stopwatchElapsed() >= SW_HOLD_SERVO_CAL_MS) {   // กดค้าง: ทดสอบเซอร์โว + calibrate
-          beep(2);
-          testServo();
-          calibrateSensors();
-          break;
-        }
-      }
-      runTestMode(modeSelect);
-      break;
-    }
+    drawStartScreen();
     if (SW_A()) {
       startStopwatch();
       beep(1);
@@ -124,15 +101,33 @@ void setup() {
       else robotMode = 5;                                          // กดสั้น = โหมด 5
       break;
     }
+    if (SW_B()) {
+      startStopwatch();
+      beep(1);
+      while (SW_B()) {}
+      if (stopwatchElapsed() >= SW_HOLD_MODE8_MS) robotMode = 8;   // กดค้าง = โหมด 8
+      else robotMode = 7;                                          // กดสั้น = โหมด 7
+      break;
+    }
+    if (SW_OK()) {
+      startStopwatch();
+      beep(1);
+      while (SW_OK()) {}
+      if (stopwatchElapsed() >= SW_HOLD_SERVO_CAL_MS) {   // กดค้าง: ทดสอบเซอร์โว + calibrate (กลับมาเลือกโหมดต่อ)
+        beep(2);
+        testServo();
+        calibrateSensors();
+      }
+      else {                                               // กดสั้น: ทดสอบมอเตอร์ตาม knob → จบงาน
+        runTestMode(modeSelect);
+        break;
+      }
+    }
   }
 
   // เริ่มวิ่งจริง
   baseSpeed = speed;
-  oled.clear();
-  oled.textSize(2);
-  oled.text(0, 0, "  Starting   ");
-  oled.text(1, 0, "   Mode=%d   ", robotMode);
-  oled.show();
+  drawStartingScreen();
   startStopwatch2();
 }
 
