@@ -54,7 +54,8 @@ void autoDriveLaneRgb() {
       status = followLineAndAlign();
       if (status < STATUS_JUNCTION) continue;               // ยังไม่เจอแยก → เดินตามเส้นต่อ
 
-      // เจอแยก/เส้นดำ → เช็คสีพื้นที่วาง
+      // เจอแยก/เส้นดำ → ถอยนิดหน่อย (กันเบรกไม่ทัน) แล้วค่อยเช็คสีพื้นที่วาง
+      if (status == STATUS_JUNCTION) backOffJunction();
       checkFloorAndKick();
       if ((floorColor != White) && (floorColor != Black)) handleDropZoneCell();   // เจอพื้นที่วาง
       else handleAdjacentLane();                                                   // เดินไปเส้นข้างๆ
