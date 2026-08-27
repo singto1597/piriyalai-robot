@@ -65,7 +65,7 @@
 - **Context/Problem:** หุ่นเร็ว เบรกไม่ทัน วิ่งเลยเส้นดำที่แยก → RGB sensor อาจไปอ่านสีฝั่งตรงข้ามเส้น (เช็คสีผิดช่อง); และตอนถอยหลังหุ่นถอยเอียง/ไม่ตรงเพราะความเร็วล้อเท่ากันทุกข้าง ไม่มีตัวปรับ
 - **Root Cause:** ใช้เวลา (ms) กำหนดระยะถอยอย่างเดียว ไม่มีเซนเซอร์ป้อนกลับ; การถอยตรงใช้ความเร็วล้อเท่ากันหมด ไม่มีกลไกปรับให้ตรงตอนถอย
 - **Correct Pattern/Solution:**
-  1. **กัน overshoot:** ใน `checkFloorAndKick()` ก่อนอ่านสี เช็ค `backL==0 && backR==0` (เซนเซอร์หลังทั้ง 2 ข้างเห็นเส้น = วิ่งข้ามเส้นมาแล้ว) → `reverseForWithBackPid(slowSpeed, JUNCTION_OVERSHOOT_BACKUP_MS)` ถอยกลับเข้าช่องก่อนค่อยเช็คสี (เวลาถอยอยู่ใน config.h)
+  1. **กันเบรกไม่ทัน (เซนเซอร์หน้าเจอเส้น):** `backOffJunction()` = `reverseForWithBackPid(slowSpeed, JUNCTION_BACKOFF_MS)` — เรียกก่อน `checkFloorAndKick()` ทุกครั้งที่ `followLineAndAlign()` คืน `STATUS_JUNCTION` (เซนเซอร์หน้าเจอเส้นดำตอนเดินไปข้างหน้า) → ถอยนิดหน่อยให้ RGB อยู่เหนือช่องเดิม ก่อนค่อยอ่านสี (เวลาถอยอยู่ใน config.h)
   2. **PID เซนเซอร์หลัง:** `reverseWithBackPid()` (ถอยจนหลังทั้ง 2 ข้างเจอเส้น) / `reverseForWithBackPid()` (ถอยตามเวลา) — ฝั่งที่เห็นเส้นก่อน = หุ่นเอียง → หน่วงล้อฝั่งนั้น เร่งล้อตรงข้าม (`BACK_PID_ADJUST` อยู่ใน config.h) ให้ถอยตรง
   3. วางบล็อค: แดง/เหลืองปล่อยลึก → `kickForColor` ถอยออกก่อนปล่อย (`KICK_RED_YELLOW_BACKUP_MS`); หลัง `backwardAlign` เดินหน้าให้ห่างเส้น (`PLACE_LEAVE_LINE_FORWARD_MS`) ก่อนเลี้ยว; สีที่เคยวางไปแล้ว (count>0) ถือเป็นขาว → ข้าม ไม่วางซ้ำ
 - **Date Added:** 2026-08-27

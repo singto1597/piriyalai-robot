@@ -47,6 +47,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
 
     // เจอเส้นดำ (แยก) → เช็คสี/วางบล็อค หรือถอยออกจากแยก
     if (status >= STATUS_JUNCTION) {
+      if (status == STATUS_JUNCTION) backOffJunction();   // เซนเซอร์หน้าเจอเส้น → ถอยนิดหน่อยก่อนเช็คสี (กันเบรกไม่ทัน)
       checkFloorAndKick();
       showColorValue();
       if ((floorColor == White) || (floorColor == Black)) {   // แยกธรรมดา → ถอยออกแยก แล้วเลี้ยวสวนโหมด
@@ -59,19 +60,17 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
   }
 }
 
+// ถอยออกจากเส้นดำนิดหน่อย กันหุ่นวิ่งเร็ว/เบรกไม่ทัน (เซนเซอร์หน้าเพิ่งเจอเส้น)
+// เรียกก่อนเช็คสี เพื่อให้ RGB sensor กลับมาอยู่เหนือช่องเดิม ไม่ไปอ่านสีฝั่งตรงข้ามเส้น
+// (ระยะถอยใน config.h — JUNCTION_BACKOFF_MS)
+void backOffJunction() {
+  reverseForWithBackPid(slowSpeed, JUNCTION_BACKOFF_MS);
+}
+
 // เช็คสีพื้น ถ้าเป็นพื้นที่วางลูกบาศก์ (สีใดก็ได้) → วางบล็อค routine เดียว
 // แล้วเช็คว่าเก็บครบ 4 สีหรือยัง (ครบ → ยกธงจบงาน)
 void checkFloorAndKick() {
   stopMotors();
-
-  // กันเบรกไม่ทัน (หุ่นเร็ว วิ่งเลยเส้นดำมา): ถ้าเซนเซอร์หลังทั้ง 2 ข้างเห็นเส้นดำ
-  // = หุ่นวิ่งข้ามเส้นไปแล้ว (RGB อาจไปอ่านสีฝั่งตรงข้ามเส้น) → ถอยกลับเข้าช่องเดิมก่อนอ่านสี
-  // (ระยะถอยใน config.h — JUNCTION_OVERSHOOT_BACKUP_MS)
-  updateBackLineBinary();
-  if ((backL == 0) && (backR == 0)) {
-    reverseForWithBackPid(slowSpeed, JUNCTION_OVERSHOOT_BACKUP_MS);   // (reverseForWithBackPid หยุดมอเตอร์ให้แล้ว)
-  }
-
   delay(COLOR_READ_SETTLE_MS);
   detectFloorColor();
   delay(COLOR_READ_SETTLE_MS);
