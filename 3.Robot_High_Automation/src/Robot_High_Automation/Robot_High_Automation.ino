@@ -119,7 +119,10 @@ void setup() {
         calibrateSensors();
       }
       else {                                               // กดสั้น: ทดสอบมอเตอร์ตาม knob → จบงาน
-        runTestMode(modeSelect);
+        // runTestMode(modeSelect);
+        beep(2);
+        testServo();
+        calibrateSensors();
         break;
       }
     }
