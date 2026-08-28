@@ -19,8 +19,8 @@ void followOneCellRgb(int tracSpeed, int timeMs) {
 }
 
 // เดินตามเส้นไปเรื่อยๆ จนกว่าจะ: ครบเวลา (status=1) หรือเจอแยก (status>=STATUS_JUNCTION)
-//  - status 1: ไม่เจอเส้นดำ → เช็คสี ถ้าเป็นพื้นที่วางให้วางบล็อค แล้วเลี้ยวตามทิศของโหมด
-//  - status 2+: เจอแยก → เช็คสี ถ้าเป็นพื้นที่วางให้วางบล็อค (ปล่อย-ถอย-ปรับ-เลี้ยวตามโหมด)
+//  - status 1: ไม่เจอเส้นดำ → เช็คสี ถ้าเป็นพื้นที่วางให้วางบล็อค แล้วเลี้ยวสวนโหมด
+//  - status 2+: เจอแยก → เช็คสี ถ้าเป็นพื้นที่วางให้วางบล็อค (ปล่อย-ถอย-ปรับ-เลี้ยวสวนโหมด)
 //               ถ้าเป็นแยกธรรมดา (ขาว/ดำ) ถอยออกแยกแล้วเลี้ยวสวนโหมด
 void followLineToColorBox(int tracSpeed, int timeMs) {
   int status = STATUS_NORMAL;
@@ -37,7 +37,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
       showRunStatus();
       if ((floorColor == White) || (floorColor == Black)) turnByMode();
       else if (floorColor == Dup) { backwardFor(speed, DUP_CELL_BACKUP_MS); turnByMode(); }   // เคสพิเศษ: ช่องวางซ้ำ → ถอยเยอะกว่าเดิม
-      // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (เลี้ยวตามโหมดไปแล้วใน placeBlockAndExit)
+      // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (เลี้ยวสวนโหมดไปแล้วใน placeBlockAndExit)
     }
 
     // เจอเส้นดำ (แยก) → เช็คสี/วางบล็อค หรือถอยออกจากแยก
@@ -53,7 +53,7 @@ void followLineToColorBox(int tracSpeed, int timeMs) {
         backwardFor(speed, DUP_CELL_BACKUP_MS);
         turnAgainstMode();
       }
-      // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (ปล่อย-ถอย-ปรับ-เลี้ยวตามโหมด) วนลูปต่อไป
+      // เป็นพื้นที่วาง → checkFloorAndKick วางบล็อคเสร็จแล้ว (ปล่อย-ถอย-ปรับ-เลี้ยวสวนโหมด) วนลูปต่อไป
       if (status == STATUS_DEADEND) stopMotors();
     }
   }
@@ -110,13 +110,13 @@ void checkFloorAndKick() {
 //   2) ถอยหลังจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (PID เซนเซอร์หลังปรับให้ถอยตรง)
 //   3) ปรับให้ตรง (ให้เส้นตั้งฉาก/กึ่งกลางตัวหุ่น)
 //   4) เดินหน้าให้ห่างจากเส้น (กันหุ่นติด/หมุนทับเส้น)
-//   5) เลี้ยวตามโหมด แล้วลูปหลักวนต่อไป
+//   5) เลี้ยวสวนโหมด (ตรงข้ามกับโหมด — โหมดซ้ายเลี้ยวขวา) แล้วลูปหลักวนต่อไป
 void placeBlockAndExit() {
   kickForColor(floorColor);              // ปล่อยลูกบาศก์ก่อน
-  reverseWithBackPid(slowSpeed, PLACE_REVERSE_STEP_MS, PLACE_REVERSE_TIMEOUT_MS);  // ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (ปรับตรงด้วย PID เซนเซอร์หลัง)
+  reverseWithBackPid(slowSpeed, PLACE_REVERSE_STEP_MS, PLACE_REVERSE_TIMEOUT_MS);  // ถอยจนเซนเซอร์หลังทั้ง 2 ข้างเจอเส้นดำ (ปรับตรงด้วย PID เซนเซอร์หลัง) — เจอเส้นหรือไม่เจอเส้นก็เลี้ยวสวนโหมดทั้งนั้น
   backwardAlign(PLACE_ALIGN_TOTAL_MS);   // ปรับให้ตรง
   forwardFor(slowSpeed, PLACE_LEAVE_LINE_FORWARD_MS);   // เดินหน้าให้ห่างออกมาจากเส้น
-  turnByMode();                          // เลี้ยวตามโหมด
+  turnAgainstMode();                     // เลี้ยวสวนโหมด (ตรงข้ามกับโหมด)
 }
 
 // ปล่อยลูกบาศก์ตามสีที่ตรวจเจอ (ช่องเซอร์โว 1 = น้ำเงิน/เขียว, ช่อง 2 = แดง/เหลือง) + นับจำนวน
