@@ -66,7 +66,8 @@ void drawWelcomeScreen() {
 }
 
 // หน้าจอเลือกโหมด (วาดใหม่ทุก loop) — แสดงวิธีกดปุ่ม + knob test mode
-void drawStartScreen() {
+// rgbValue >= 0 = ค่า RGB565 ดิบที่อ่านล่าสุด (ทุก 1 วิ ตอนยังไม่กดปุ่ม), -1 = ยังไม่อ่าน
+void drawStartScreen(long rgbValue) {
   oledReset();
   oled.text(0, 0, "== SELECT MODE ==");
   oled.text(1, 0, "A tap=5  hold=6");
@@ -74,7 +75,8 @@ void drawStartScreen() {
   oled.text(3, 0, "OK tap=TEST %d", modeSelect);
   oled.text(4, 0, "OK hold=CALIB");
   drawDivider(5);
-  oled.text(6, 0, "Default M%d %s", robotMode, modeName(robotMode));
+  if (rgbValue < 0) oled.text(6, 0, "RGB: --");      // ยังไม่อ่านครั้งแรก
+  else              oled.text(6, 0, "RGB:%l", rgbValue);   // ค่าดิบ RGB565 (ไม่ใช่ชื่อสี)
   oled.text(7, 0, "Spd=%d ACC=%d", speed, accSpeed);
   oled.show();
 }
