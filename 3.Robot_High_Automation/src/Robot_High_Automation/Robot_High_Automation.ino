@@ -89,10 +89,14 @@ void setup() {
   //  - กด SW_B ค้าง >= 1วิ       = โหมด 8 (วิ่งตรงยาว เลี้ยวซ้าย)
   //  - หมุน knob + กด OK สั้นๆ  = ทดสอบโหมดตามตำแหน่ง knob (0-5)
   //  - กด OK ค้าง >= 2วิ         = ทดสอบเซอร์โว + ตั้งค่าอ้างอิงใหม่ (กลับมาเลือกโหมดต่อ)
+  //  - ยังไม่กดอะไร              = อ่านค่า RGB ดิบทุก 1 วิ โชว์บนจอ (ไว้จูนค่า ref สี)
+  long startRgb = -1;                // ค่า RGB565 ดิบล่าสุดที่อ่านตอนยังไม่กดปุ่ม (-1 = ยังไม่อ่าน)
+  startStopwatch4();
   while (1) {
     knobValue = knob();
     modeSelect = map(knobValue, KNOB_ADC_MIN, KNOB_ADC_MAX, TEST_MODE_MIN, TEST_MODE_MAX);
-    drawStartScreen();
+
+    // เช็คปุ่มก่อน (ถ้ากดจะ break ไปเลย ไม่เสียเวลาอ่านสี)
     if (SW_A()) {
       startStopwatch();
       beep(1);
@@ -126,6 +130,13 @@ void setup() {
         break;
       }
     }
+
+    // ยังไม่กดอะไร → อ่านค่าเซนเซอร์สีทุกๆ RGB_LIVE_READ_MS แล้วโชว์ค่าดิบ (ไม่แปลงเป็นชื่อสี)
+    if (stopwatchElapsed4() >= RGB_LIVE_READ_MS) {
+      startRgb = readRgbColor();
+      startStopwatch4();
+    }
+    drawStartScreen(startRgb);
   }
 
   // เริ่มวิ่งจริง
